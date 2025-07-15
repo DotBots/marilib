@@ -3,7 +3,7 @@ import time
 import click
 
 from mira_edge.mira_edge import MiraEdge
-from mira_edge.mira_protocol import Frame
+from mira_edge.mira_protocol import MIRA_BROADCAST_ADDRESS, Frame
 from mira_edge.model import EdgeEvent, MiraNode
 from mira_edge.serial_uart import get_default_port
 from mira_edge.tui import MiraEdgeTUI
@@ -35,16 +35,18 @@ def on_event(event: EdgeEvent, event_data: MiraNode | Frame):
 )
 def main(port: str | None):
     """Basic example of using MiraEdge to communicate with nodes."""
-    mira = MiraEdge(on_event=on_event, port=port)
+    mira = MiraEdge(on_event, port=port)
     tui = MiraEdgeTUI()
 
     try:
         while True:
-            # mira.send_frame(dst=0xFF, payload=b"A" * 3)
-            for node in mira.gateway.nodes:
-                # print(f"Sending frame to 0x{node.address:016x}")
-                mira.send_frame(dst=node.address, payload=b"A" * 3)
-            time.sleep(0.25)
+            mira.gateway.update()
+            if len(mira.gateway.nodes) > 0:
+                mira.send_frame(dst=MIRA_BROADCAST_ADDRESS, payload=b"A" * 224)
+            # for node in mira.gateway.nodes:
+            #     # print(f"Sending frame to 0x{node.address:016x}")
+            #     mira.send_frame(dst=node.address, payload=b"A" * 3)
+            time.sleep(0.3)
             tui.render(mira)
 
     except KeyboardInterrupt:

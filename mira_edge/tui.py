@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from rich.columns import Columns
 from rich.console import Console, Group
@@ -12,11 +12,13 @@ from mira_edge.mira_edge import MiraEdge
 
 
 class MiraEdgeTUI:
-    def __init__(self, max_tables=3):
+    def __init__(self, max_tables=3, re_render_max_freq=0.2):
         self.console = Console()
         self.live = Live(console=self.console, auto_refresh=False, transient=True)
         self.live.start()
         self.max_tables = max_tables
+        self.re_render_max_freq = re_render_max_freq # seconds
+        self.last_render_time = datetime.now()
 
     def get_max_rows(self) -> int:
         """Calculate maximum rows based on terminal height.
@@ -33,6 +35,10 @@ class MiraEdgeTUI:
         return max(2, available_height)  # Minimum 2 rows to always show something
 
     def render(self, mira: MiraEdge):
+        if datetime.now() - self.last_render_time < timedelta(seconds=self.re_render_max_freq):
+            return
+        self.last_render_time = datetime.now()
+
         # Create layout
         layout = Layout()
 
@@ -76,13 +82,16 @@ class MiraEdgeTUI:
         status.append("Frames TX: ", style="bold cyan")
         status.append(f"{mira.gateway.stats.sent_count()}  |  ")
         status.append("Frames RX: ", style="bold cyan")
-        status.append(f"{mira.gateway.stats.received_count()}  |  ")
+        status.append(f"{mira.gateway.stats.received_count()} |  ")
         status.append("TX/s: ", style="bold cyan")
         status.append(f"{mira.gateway.stats.sent_count(1)}  |  ")
         status.append("RX/s: ", style="bold cyan")
-        status.append(f"{mira.gateway.stats.received_count(1)}  |  ")
-        status.append("SR' (30s): ", style="bold cyan")
-        status.append(f"{mira.gateway.stats.success_rate(30):.2%}")
+        status.append(f"{mira.gateway.stats.received_count(1)}")
+        # status.append(f"  |  ")
+        # FIXME: this statistics should be computed differently for broadcasted frames, that's why it's commented out for now
+        # status.append("  |  ")
+        # status.append("SR' (30s): ", style="bold cyan")
+        # status.append(f"{mira.gateway.stats.success_rate(30):.2%}")
 
         return Panel(status, title="[bold]MiraEdge Status", border_style="blue")
 
@@ -103,7 +112,6 @@ class MiraEdgeTUI:
         table.add_column("RX", justify="right")
         table.add_column("RX/s", justify="right")
         table.add_column("SR", justify="right")
-        table.add_column("SR'", justify="right")
         table.add_column("RSSI", justify="right")
 
         # Add rows for each node
@@ -114,9 +122,8 @@ class MiraEdgeTUI:
                 str(node.stats.sent_count(1)),
                 str(node.stats.received_count()),
                 str(node.stats.received_count(1)),
-                f"{node.stats.success_rate():>4.0%}",
                 f"{node.stats.success_rate(30):>4.0%}",
-                f"{node.stats.received_rssi_dbm()}",
+                f"{node.stats.received_rssi_dbm(5)}",
             )
 
         return table

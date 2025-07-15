@@ -68,7 +68,8 @@ class Frame:
 
     def to_bytes(self, byteorder="little") -> bytes:
         header_bytes = self.header.to_bytes(byteorder)
-        return header_bytes + self.payload
+        stats_bytes = self.stats.to_bytes(byteorder)
+        return header_bytes + stats_bytes + self.payload
 
     def __repr__(self):
         header_no_metadata = dataclasses.replace(self.header, metadata=[])

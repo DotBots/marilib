@@ -2,18 +2,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
-from mira_edge.mira_protocol import Frame, Header
+from mira_edge.mira_protocol import MIRA_BROADCAST_ADDRESS, Frame, Header
 from mira_edge.model import EdgeEvent, GatewayInfo, MiraGateway, MiraNode
 from mira_edge.protocol import ProtocolPayloadParserException
-from mira_edge.serial_adapter import SerialAdapter
+from mira_edge.adapter import SerialAdapter
 from mira_edge.serial_uart import get_default_port
 
 
 @dataclass
 class MiraEdge:
-    on_event: Callable[[EdgeEvent, MiraNode | Frame], None] = field(
+    cb_application: Callable[[EdgeEvent, MiraNode | Frame], None] = field(
         default_factory=lambda: lambda *args: None
     )
+    cb_mqtt: Callable[[str, str], None] = None
     port: str | None = None
     baudrate: int = 1_000_000
     gateway: MiraGateway = field(default_factory=MiraGateway)
@@ -25,13 +26,19 @@ class MiraEdge:
         if self.port is None:
             self.port = get_default_port()
         self.serial_interface = SerialAdapter(self.port, self.baudrate)
-        self.serial_interface.init(self.on_data_received)
+        self.serial_interface.init(self.on_received_serial)
+        if self.cb_mqtt is not None:
+            self.mqtt_interface = MQTTAdapter(self.host, self.port)
+            self.mqtt_interface.init(self.on_received_mqtt)
 
     @property
     def serial_connected(self) -> bool:
         return self.serial_interface is not None
 
-    def on_data_received(self, data: bytes):
+    def on_received_mqtt(self, topic: str, payload: bytes):
+        print(f"Received MQTT message: {topic} {payload}")
+
+    def on_received_serial(self, data: bytes):
         if len(data) < 1:
             return
 
@@ -44,13 +51,14 @@ class MiraEdge:
             address = int.from_bytes(data[1:9], "little")
             # print(f"Event: {EdgeEvent.NODE_JOINED.name} {address}")
             node = self.gateway.add_node(address)
-            self.on_event(EdgeEvent.NODE_JOINED, node)
+            self.cb_application(EdgeEvent.NODE_JOINED, node)
+            self.send_data(node.address_bytes)
 
         elif event_type == EdgeEvent.NODE_LEFT:
             address = int.from_bytes(data[1:9], "little")
             # print(f"Event: {EdgeEvent.NODE_LEFT.name} {address}")
             if node := self.gateway.remove_node(address):
-                self.on_event(EdgeEvent.NODE_LEFT, node)
+                self.cb_application(EdgeEvent.NODE_LEFT, node)
 
         elif event_type == EdgeEvent.NODE_KEEP_ALIVE:
             address = int.from_bytes(data[1:9], "little")
@@ -63,7 +71,7 @@ class MiraEdge:
                 frame = Frame().from_bytes(frame_bytes)
                 # print(f"Event: {EdgeEvent.NODE_DATA.name} {frame.header} {frame.payload.hex()}")
                 self.gateway.register_received_frame(frame)
-                self.on_event(EdgeEvent.NODE_DATA, frame)
+                self.cb_application(EdgeEvent.NODE_DATA, frame)
             except (ValueError, ProtocolPayloadParserException) as exc:
                 print(f"Failed to decode frame: {exc}")
 
@@ -86,4 +94,7 @@ class MiraEdge:
         self.serial_interface.send_data(uart_frame)
         if node := self.gateway.get_node(dst):
             node.register_sent_frame(mira_frame)
+        elif dst == MIRA_BROADCAST_ADDRESS:
+            for node in self.gateway.nodes:
+                node.register_sent_frame(mira_frame)
         self.gateway.register_sent_frame(mira_frame)

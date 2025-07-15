@@ -75,13 +75,12 @@ class FrameStats:
             rssi = self.received[-1].frame.stats.rssi_dbm
         else:
             now = datetime.now()
-            rssi = sum(
-                [
-                    entry.frame.stats.rssi_dbm
-                    for entry in self.received
-                    if now - entry.ts < timedelta(seconds=window_secs)
-                ]
-            ) / len(self.received)
+            dbms = [
+                entry.frame.stats.rssi_dbm
+                for entry in self.received
+                if now - entry.ts < timedelta(seconds=window_secs)
+            ]
+            rssi = sum(dbms) / len(dbms) if dbms else 0
         return int(rssi)
 
 
@@ -132,6 +131,14 @@ class MiraGateway:
 
     def __repr__(self):
         return f"MiraGateway(info={self.info}, number of nodes: {len(self.nodes)}"
+
+    def update(self):
+        # remove nodes that have not been seen in the last 2 second
+        self.nodes = [
+            node
+            for node in self.nodes
+            if datetime.now() - node.last_seen < timedelta(seconds=2)
+        ]
 
     def set_info(self, info: GatewayInfo):
         self.info = info
