@@ -50,7 +50,9 @@ class MariLib:
             if USE_ELA:
                 print(f"Node trying to join: {frame}")
                 ela_handler = ELAHandler()
-                ela_handler.handle_message_1(frame)
+                res, join_response_payload = ela_handler.handle_join_request(frame)
+                # if res:
+                #     self.send_join_response(frame.header.destination, join_response_payload)
             else:
                 print(f"Node joined: {frame.header.destination}")
                 address = frame.header.destination
