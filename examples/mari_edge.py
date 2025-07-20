@@ -14,16 +14,16 @@ SERIAL_PORT_DEFAULT = get_default_port()
 def on_event(event: EdgeEvent, event_data: MariNode | Frame):
     if event == EdgeEvent.NODE_JOINED:
         assert isinstance(event_data, MariNode)
-        # print(f"Node {event_data} joined")
+        print(f"Node {event_data} joined")
         # print("#", end="", flush=True)
     elif event == EdgeEvent.NODE_LEFT:
         assert isinstance(event_data, MariNode)
-        # print(f"Node {event_data} left")
+        print(f"Node {event_data} left")
         # print("0", end="", flush=True)
     elif event == EdgeEvent.NODE_DATA:
         assert isinstance(event_data, Frame)
         # print(f"Got frame from 0x{event_data.header.source:016x}: {event_data.payload.hex()}, rssi: {event_data.stats.rssi_dbm}")
-        # print(".", end="", flush=True)
+        print(".", end="", flush=True)
 
 
 @click.command()
@@ -47,7 +47,7 @@ def main(port: str | None):
             #     # print(f"Sending frame to 0x{node.address:016x}")
             #     mari.send_frame(dst=node.address, payload=b"A" * 3)
             time.sleep(0.3)
-            tui.render(mari)
+            # tui.render(mari)
 
     except KeyboardInterrupt:
         print("\nInterrupted by user")

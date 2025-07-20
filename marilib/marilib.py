@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header
+from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, PacketType, Header
 from marilib.model import EdgeEvent, GatewayInfo, MariGateway, MariNode
 from marilib.protocol import ProtocolPayloadParserException
 from marilib.serial_adapter import SerialAdapter
@@ -51,20 +51,14 @@ class MariLib:
                 print(f"Node trying to join: {frame}")
                 ela_handler = ELAHandler()
                 res, join_response_payload = ela_handler.handle_join_request(frame)
-                # if res:
-                #     self.send_join_response(frame.header.destination, join_response_payload)
+                if res:
+                    self.send_join_response(frame.header.destination, join_response_payload)
             else:
                 print(f"Node joined: {frame.header.destination}")
                 address = frame.header.destination
                 # print(f"Event: {EdgeEvent.NODE_JOINED.name} {address}")
                 node = self.gateway.add_node(address)
                 self.cb_application(EdgeEvent.NODE_JOINED, node)
-
-        elif event_type == EdgeEvent.NODE_LEFT:
-            address = int.from_bytes(data[1:9], "little")
-            # print(f"Event: {EdgeEvent.NODE_LEFT.name} {address}")
-            if node := self.gateway.remove_node(address):
-                self.cb_application(EdgeEvent.NODE_LEFT, node)
 
         elif event_type == EdgeEvent.NODE_KEEP_ALIVE:
             address = int.from_bytes(data[1:9], "little")
@@ -104,3 +98,10 @@ class MariLib:
             for node in self.gateway.nodes:
                 node.register_sent_frame(mari_frame)
         self.gateway.register_sent_frame(mari_frame)
+
+    def send_join_response(self, dst: int, payload: bytes):
+        assert self.serial_interface is not None
+        mari_frame = Frame(Header(destination=dst, type_=PacketType.JOIN_RESPONSE), payload=payload)
+        uart_frame_type = b"\x01"
+        uart_frame = uart_frame_type + mari_frame.to_bytes()
+        self.serial_interface.send_data(uart_frame)
