@@ -26,6 +26,7 @@ dependencies = [
     "rich           == 14.0.0",
     "structlog      == 24.4.0",
     "tqdm           == 4.66.5",
+    "requests       == 2.32.3",
 ]
 description = "MariLib is a Python library for interacting with the Mari network."
 readme = "README.md"
