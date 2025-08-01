@@ -88,6 +88,7 @@ class MariLib:
             elif event_type == EdgeEvent.GATEWAY_INFO:
                 try:
                     self.gateway.set_info(GatewayInfo().from_bytes(data[1:]))
+                    # print(self.gateway.info.repr_schedule_stats())
                 except (ValueError, ProtocolPayloadParserException):
                     pass
             elif event_type == EdgeEvent.NODE_DATA:
