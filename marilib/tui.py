@@ -74,6 +74,11 @@ class MariLibTUI:
         status.append(f"{mari.gateway.info.network_id}  |  ")
         status.append("Schedule ID: ", style="bold cyan")
         status.append(f"{mari.gateway.info.schedule_id}")
+        status.append("  |  ")
+        status.append("Schedule Stats: ", style="bold cyan")
+        # Convert to binary string, remove '0b' prefix, pad to 137 bits
+        status.append(mari.gateway.info.repr_schedule_stats())
+        status.append("\n\n")
 
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
             status.append("  |  ")

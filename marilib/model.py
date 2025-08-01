@@ -148,11 +148,27 @@ class GatewayInfo(Packet):
             PacketFieldMetadata(name="address", length=8),
             PacketFieldMetadata(name="network_id", length=2),
             PacketFieldMetadata(name="schedule_id", length=1),
+            PacketFieldMetadata(name="schedule_stats", length=4*8), # 4 uint64_t values
         ]
     )
     address: int = 0
     network_id: int = 0
     schedule_id: int = 0
+    schedule_stats: bytes = b""
+
+    def repr_schedule_stats(self):
+        if not self.schedule_stats:
+            return ""
+        all_bits = format(self.schedule_stats, f'0{4*8*8}b')
+        all_bits = [all_bits[i:i+8] for i in range(0, len(all_bits), 8)]
+        all_bits.reverse()
+        # print(">>>", reversed(all_bits[0].split("")))
+        all_bits = [list(reversed(bits)) for bits in all_bits]
+        # now just flatten the list
+        all_bits = [item for sublist in all_bits for item in sublist]
+        # cut it down to 137 bits
+        all_bits = all_bits[8:145]
+        return "".join(all_bits)
 
 
 @dataclass
