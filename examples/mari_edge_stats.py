@@ -51,15 +51,9 @@ class LoadTester(threading.Thread):
             self._stop_event.wait(delay)
 
 
-logger_container = {"instance": None}
-
-
 def on_event(event: EdgeEvent, event_data: MariNode | Frame):
     """An event handler for the application."""
-    logger = logger_container["instance"]
-    if logger and logger.active and event_data:
-        if event in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT]:
-            logger.log_event(event_data.address, event.name)
+    pass
 
 
 @click.command()
@@ -90,7 +84,16 @@ def main(port: str | None, load: int, log_dir: str):
         sys.stderr.write("Error: --load must be between 0 and 100.\n")
         return
 
-    mari = MariLib(on_event, port)
+    setup_params = {
+        "script_name": "mari_edge_stats.py",
+        "port": port,
+        "load_percentage": load,
+    }
+    logger = MetricsLogger(
+        log_dir_base=log_dir, rotation_interval_minutes=1440, setup_params=setup_params
+    )
+
+    mari = MariLib(on_event, port, logger=logger)
 
     print("Connecting to gateway and waiting for its info packet...")
     gateway_info_received = False
@@ -105,24 +108,15 @@ def main(port: str | None, load: int, log_dir: str):
 
     if not gateway_info_received:
         sys.stderr.write("\nError: Timed out waiting for gateway info.\n")
+        logger.close()
         return
 
     schedule_id = mari.gateway.info.schedule_id
     schedule_name = SCHEDULE_ID_TO_NAME.get(schedule_id, "unknown")
     print(f"Gateway reported schedule: '{schedule_name}' (ID: {schedule_id})")
 
-    setup_params = {
-        "script_name": "mari_edge_stats.py",
-        "port": port,
-        "schedule": f"{schedule_name} (auto-detected)",
-        "load_percentage": load,
-    }
-
-    logger = MetricsLogger(
-        log_dir_base=log_dir, rotation_interval_minutes=1440, setup_params=setup_params
-    )
-
-    logger_container["instance"] = logger
+    setup_params["schedule"] = f"{schedule_name} (auto-detected)"
+    logger._log_setup_parameters(setup_params)
 
     test_state = TestState(
         schedule_id=schedule_id,
@@ -152,11 +146,7 @@ def main(port: str | None, load: int, log_dir: str):
                 mari.gateway.update()
 
                 if current_time - last_log_time >= log_interval_seconds:
-                    if logger.active:
-                        logger.log_gateway_metrics(mari.gateway)
-                        logger.log_all_nodes_metrics(
-                            list(mari.gateway.node_registry.values())
-                        )
+                    mari.log_periodic_metrics()
                     last_log_time = current_time
 
                 tui.render(mari)

@@ -1,7 +1,7 @@
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable
+from typing import Any, Callable
 
 from marilib.latency import LATENCY_PACKET_MAGIC, LatencyTester
 from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header
@@ -27,6 +27,7 @@ class MariLib:
     cb_application: Callable[[EdgeEvent, MariNode | Frame], None]
     port: str | None = None
     baudrate: int = 1_000_000
+    logger: Any | None = None
     gateway: MariGateway = field(default_factory=MariGateway)
     serial_interface: SerialAdapter | None = None
     started_ts: datetime = field(default_factory=datetime.now)
@@ -50,6 +51,11 @@ class MariLib:
         if sf_duration_ms == 0:
             return 0.0
         return d_down / (sf_duration_ms / 1000.0)
+
+    def log_periodic_metrics(self):
+        if self.logger and self.logger.active:
+            self.logger.log_gateway_metrics(self.gateway)
+            self.logger.log_all_nodes_metrics(list(self.gateway.node_registry.values()))
 
     def latency_test_enable(self):
         if self.latency_tester is None:
@@ -80,9 +86,13 @@ class MariLib:
 
             if event_type == EdgeEvent.NODE_JOINED:
                 node = self.gateway.add_node(int.from_bytes(data[1:9], "little"))
+                if self.logger:
+                    self.logger.log_event(node.address, EdgeEvent.NODE_JOINED.name)
                 self.cb_application(EdgeEvent.NODE_JOINED, node)
             elif event_type == EdgeEvent.NODE_LEFT:
                 if n := self.gateway.remove_node(int.from_bytes(data[1:9], "little")):
+                    if self.logger:
+                        self.logger.log_event(n.address, EdgeEvent.NODE_LEFT.name)
                     self.cb_application(EdgeEvent.NODE_LEFT, n)
             elif event_type == EdgeEvent.NODE_KEEP_ALIVE:
                 self.gateway.update_node_liveness(int.from_bytes(data[1:9], "little"))

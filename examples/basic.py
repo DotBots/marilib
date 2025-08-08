@@ -11,19 +11,18 @@ from marilib.tui import MariLibTUI
 SERIAL_PORT_DEFAULT = get_default_port()
 NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 
-logger_container = {"instance": None}
-
 
 def on_event(event: EdgeEvent, event_data: MariNode | Frame):
-    """An event handler for the application that logs node join/leave events."""
-    logger = logger_container["instance"]
-    if logger and logger.active and event_data:
-        if event in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT]:
-            logger.log_event(event_data.address, event.name)
-        elif event == EdgeEvent.NODE_DATA:
-            # print(f"Got frame from 0x{event_data.header.source:016x}: {event_data.payload.hex()}, rssi: {event_data.stats.rssi_dbm}")
-            # print(".", end="", flush=True)
-            pass
+    """An event handler for the application."""
+    if event == EdgeEvent.NODE_JOINED:
+        # print(f"Node {event_data} joined")
+        pass
+    elif event == EdgeEvent.NODE_LEFT:
+        # print(f"Node {event_data} left")
+        pass
+    elif event == EdgeEvent.NODE_DATA:
+        # print(f"Got frame from 0x{event_data.header.source:016x}: {event_data.payload.hex()}, rssi: {event_data.stats.rssi_dbm}")
+        pass
 
 
 @click.command()
@@ -44,16 +43,14 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame):
 )
 def main(port: str | None, log_dir: str):
     """A basic example of using the MariLib library."""
-    mari = MariLib(on_event, port)
     tui = MariLibTUI()
-
     setup_params = {"script_name": "basic.py", "port": port}
 
     logger = MetricsLogger(
         log_dir_base=log_dir, rotation_interval_minutes=1440, setup_params=setup_params
     )
 
-    logger_container["instance"] = logger
+    mari = MariLib(on_event, port, logger=logger)
 
     log_interval_seconds = 1.0
     last_log_time = 0
@@ -64,11 +61,7 @@ def main(port: str | None, log_dir: str):
 
             if current_time - last_log_time >= log_interval_seconds:
                 with mari.lock:
-                    if logger.active:
-                        logger.log_gateway_metrics(mari.gateway)
-                        logger.log_all_nodes_metrics(
-                            list(mari.gateway.node_registry.values())
-                        )
+                    mari.log_periodic_metrics()
                 last_log_time = current_time
 
             with mari.lock:
