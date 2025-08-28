@@ -69,4 +69,9 @@ turn it onwhen the rPi is turned off.
 - Do not unplug the nRF or turn it off directly, you need to eject it or remove it when the 
 Raspberry Pi is off or you will cause damage to the rPi and unpredicted 
 behavior when running the TUI (it will crash).
+- On boot, If you get a message that the gateway was ejected even though it is on, reboot ``` sudo reboot ```;  
+as in this the TUI won't connect to the gateway because the gateway ejected itself or the rPi didn't shut down correctly 
+so the gateway won't be seen until you reboot.
+- Always always use ``` sudo shutdown -h now ``` to turn off the Raspberry Pi, if you unplug the power cable manually you will
+corrupt the rPi and cause unpredicted behavior.
 
