@@ -29,8 +29,7 @@ ExecStartPre=/usr/bin/udevadm settle
 ExecStartPre=/bin/bash -c "for i in {1..600}; do exec 3<>/dev/ttyACM10 && exit 0 || sleep 0.2; done; echo 'Gateway port: ttyACM10 not ready, the service has stopped and will not restart, check connections and reboot' >&2; exit 1"
 
 #run basic.py
-ExecStart=/usr/bin/tmux new-session -s marilib -d "/home/pi/marilib/venv/bin/python /home/pi/marilib/examples/mari_edge.py -p /dev/ttyACM10"
-ExecStop=/usr/bin/tmux kill-session -t marilib
+ExecStart=/usr/bin/tmux new-session -s marilib -d "/home/pi/marilib/venv/bin/python /home/pi/marilib/examples/mari_edge.py -m mqtts://argus.paris.inria.fr:8883 -p /dev/ttyACM10"
 Type=forking
 
 Restart=on-failure
