@@ -145,6 +145,7 @@ class MarilibEdge(MarilibBase):
         ):
             # ignore frames for unknown nodes
             return
+        print(f"Cloud to Edge: dst=0x{frame.header.destination:04X} len={len(frame.payload)}")
         self.send_frame(frame.header.destination, frame.payload)
 
     def handle_serial_data(self, data: bytes) -> tuple[bool, EdgeEvent, Any]:
