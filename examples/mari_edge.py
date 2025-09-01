@@ -30,9 +30,8 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame):
     "--mqtt-url",
     "-m",
     type=str,
-    default="mqtt://localhost:1883",
-    show_default=True,
-    help="MQTT broker to use (default: empty, no cloud)",
+    default=None,
+    help="MQTT broker to use (default: None, no cloud)",
 )
 @click.option(
     "--log-dir",
