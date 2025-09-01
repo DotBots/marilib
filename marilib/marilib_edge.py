@@ -21,6 +21,8 @@ from marilib.tui_edge import MarilibTUIEdge
 
 LOAD_PACKET_PAYLOAD = b"L"
 
+# for attestation
+from marilib.marilib_attest_rp import mr_is_attest_verif_resp, mr_process_attest_verif_resp
 
 @dataclass
 class MarilibEdge(MarilibBase):
@@ -145,8 +147,13 @@ class MarilibEdge(MarilibBase):
         ):
             # ignore frames for unknown nodes
             return
-        print(f"Cloud to Edge: dst=0x{frame.header.destination:04X} len={len(frame.payload)}")
-        self.send_frame(frame.header.destination, frame.payload)
+        # for attestation verification response
+        if mr_is_attest_verif_resp(frame.payload):
+            result_payload = mr_process_attest_verif_resp(frame.payload)
+            self.send_frame(frame.header.destination, result_payload)
+            print(f"Cloud to Edge: len={len(frame.payload)}, result = {result_payload}")
+        else:
+            self.send_frame(frame.header.destination, frame.payload)
 
     def handle_serial_data(self, data: bytes) -> tuple[bool, EdgeEvent, Any]:
         """

@@ -4,6 +4,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 from cryptography.exceptions import InvalidSignature
 
+# TODO: add verificaiton request tag
+MARI_ATTEST_VERIF_REQ_PAYLOAD_TAG  = 0xE2 
+MARI_ATTEST_VERIF_RESP_PAYLOAD_TAG = 0xE3
+
 # provisions 
 freshness_threshold = 8000
 node_to_key_id = {
@@ -15,7 +19,7 @@ swarm_public_key_list = {
 }
 
 swarm_reference_value_list = {
-    1: "h'DE6CD05D50778648BDB07B4D1C6DB81E0C2DF4533A32E515E533A26E2172873B'"
+    1: bytes.fromhex("DE6CD05D50778648BDB07B4D1C6DB81E0C2DF4533A32E515E533A26E2172873B")
 }
 
 key_id_v = 5
@@ -23,12 +27,12 @@ private_key_verifier = bytes.fromhex('8ed2d03fa136f5232f957e41d368940153d580e6b5
 public_key_verifier = bytes.fromhex('2463f9d5e61b84689b3b19ae10a3d6b5bfd1e69a643d7061aca4d04f7fd98db9')
 
 def mr_swarm_check_signature(signature_attester, asn_dl, version, node_id):
-    # prepare sig_structure
+    # prepare sig_structure, order: asn_dl, key_id, hash
     hash_verifier = swarm_reference_value_list[version]
-    key_id_verifier = node_to_key_id[node_id]
-    sig_structure = cbor2.dumps([asn_dl, hash_verifier, key_id_verifier])
+    key_id_to_check = node_to_key_id[node_id]
+    sig_structure = cbor2.dumps([asn_dl, key_id_to_check, hash_verifier])
     
-    public_key_bytes = swarm_public_key_list[key_id_verifier]
+    public_key_bytes = swarm_public_key_list[key_id_to_check]
     public_key = Ed25519PublicKey.from_public_bytes(public_key_bytes)
     try:
         public_key.verify(signature_attester, sig_structure)
@@ -45,7 +49,7 @@ def mr_swarm_generate_verification_response(result, node_id):
     result_signed = private_key.sign(sig_structure_cbor)
     # generate verification_response
     verification_response = cbor2.dumps([result_signed, node_id, key_id_v])
-    return verification_response
+    return bytes([MARI_ATTEST_VERIF_RESP_PAYLOAD_TAG]) + verification_response
 
 def mr_swarm_verification_result(verification_request):
         asn_ul, asn_offset, evidence_cbor, node_id = cbor2.loads(verification_request)
@@ -57,6 +61,8 @@ def mr_swarm_verification_result(verification_request):
         
         asn_dl = asn_ul - asn_offset
         if (mr_swarm_check_signature(signature_attester, asn_dl, version_attester, node_id)):
+            print(f"all checks good")
             return mr_swarm_generate_verification_response(True, node_id)
         else:
+            print(f"signature checks fail")
             return mr_swarm_generate_verification_response(False, node_id)

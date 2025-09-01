@@ -8,7 +8,7 @@ from marilib.communication_adapter import MQTTAdapter
 from marilib.tui_cloud import MarilibTUICloud
 from marilib.logger import MetricsLogger
 
-from marilib.marilib_remote_verifier import mr_swarm_verification_result
+from marilib.marilib_attest_verifier import mr_swarm_verification_result
 
 NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 mari_instance = None
