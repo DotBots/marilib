@@ -196,7 +196,12 @@ class MarilibEdge(MarilibBase):
                 frame = Frame().from_bytes(data[1:])
                 with self.lock:
                     self.gateway.update_node_liveness(frame.header.source)
-                    self.gateway.register_received_frame(frame, is_test_packet=False)
+                    # ---- handle test packets ----
+                    is_test_packet = self._is_test_packet(frame.payload)
+                    if self.latency_tester and frame.payload.startswith(LATENCY_PACKET_MAGIC):
+                        self.latency_tester.handle_response(frame)
+                    # ---- handle normal packets ----
+                    self.gateway.register_received_frame(frame, is_test_packet=is_test_packet)
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
                 return False, EdgeEvent.UNKNOWN, None

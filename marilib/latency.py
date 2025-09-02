@@ -35,15 +35,15 @@ class LatencyTester:
     def _run(self):
         """The main loop for the testing thread."""
         while not self._stop_event.is_set():
-            if not self.marilib.gateway.nodes:
+            if not self.marilib.nodes:
                 time.sleep(self.interval)
                 continue
 
-            for node in list(self.marilib.gateway.nodes):
+            for node in list(self.marilib.nodes):
                 if self._stop_event.is_set():
                     break
                 self.send_latency_request(node.address)
-                time.sleep(self.interval / len(self.marilib.gateway.nodes))
+                time.sleep(self.interval / len(self.marilib.nodes))
 
     def send_latency_request(self, address: int):
         """Sends a latency request packet to a specific address."""
