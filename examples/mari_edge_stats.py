@@ -109,7 +109,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
     mari = MarilibEdge(
         on_event,
         serial_interface=SerialAdapter(port),
-        mqtt_interface=MQTTAdapter.from_host_port(mqtt_host, is_edge=True) if mqtt_host else None,
+        mqtt_interface=MQTTAdapter.from_url(mqtt_host, is_edge=True) if mqtt_host else None,
         logger=logger,
         main_file=__file__,
         tui=MarilibTUIEdge(test_state=test_state),
