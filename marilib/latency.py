@@ -6,11 +6,10 @@ import math
 
 from rich import print
 from marilib.mari_protocol import Frame
+from marilib.mari_protocol import DefaultPayload, DefaultPayloadType
 
 if TYPE_CHECKING:
     from marilib.marilib_edge import MarilibEdge
-
-LATENCY_PACKET_MAGIC = b"\x4c\x54"  # "LT" for Latency Test
 
 
 class LatencyTester:
@@ -55,7 +54,7 @@ class LatencyTester:
 
     def send_latency_request(self, address: int):
         """Sends a latency request packet to a specific address."""
-        payload = LATENCY_PACKET_MAGIC + struct.pack("<d", time.time())
+        payload = DefaultPayload(type_=DefaultPayloadType.LATENCY_TEST, needs_ack=True).to_bytes() + struct.pack("<d", time.time())
         self.marilib.send_frame(address, payload)
 
     def handle_response(self, frame: Frame):
@@ -63,7 +62,8 @@ class LatencyTester:
         Processes a latency response frame.
         This should be called when a LATENCY_DATA event is received.
         """
-        if not frame.payload.startswith(LATENCY_PACKET_MAGIC):
+        payload = DefaultPayload().from_bytes(frame.payload)
+        if payload.type_ != DefaultPayloadType.LATENCY_TEST:
             return
         try:
             # Unpack the original timestamp from the payload

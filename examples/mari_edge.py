@@ -2,14 +2,12 @@ import time
 
 import click
 from marilib.logger import MetricsLogger
-from marilib.mari_protocol import Frame, MARI_BROADCAST_ADDRESS
+from marilib.mari_protocol import Frame, MARI_BROADCAST_ADDRESS, DefaultPayload
 from marilib.model import EdgeEvent, MariNode
 from marilib.communication_adapter import SerialAdapter, MQTTAdapter
 from marilib.serial_uart import get_default_port
 from marilib.tui_edge import MarilibTUIEdge
 from marilib.marilib_edge import MarilibEdge
-
-NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 
 
 def on_event(event: EdgeEvent, event_data: MariNode | Frame):
@@ -58,7 +56,7 @@ def main(port: str | None, mqtt_url: str, log_dir: str):
         while True:
             mari.update()
             if not mari.uses_mqtt and mari.nodes:
-                mari.send_frame(MARI_BROADCAST_ADDRESS, NORMAL_DATA_PAYLOAD)
+                mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
             mari.render_tui()
             time.sleep(0.5)
     except KeyboardInterrupt:

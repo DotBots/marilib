@@ -4,15 +4,12 @@ import time
 
 import click
 from marilib.logger import MetricsLogger
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame
+from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, DefaultPayload, DefaultPayloadType
 from marilib.marilib_edge import MarilibEdge
 from marilib.model import EdgeEvent, GatewayInfo, MariNode, TestState
 from marilib.serial_uart import get_default_port
 from marilib.tui_edge import MarilibTUIEdge
 from marilib.communication_adapter import SerialAdapter, MQTTAdapter
-
-LOAD_PACKET_PAYLOAD = b"L"
-NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 
 
 class LoadTester(threading.Thread):
@@ -43,7 +40,7 @@ class LoadTester(threading.Thread):
                 nodes_exist = bool(self.mari.gateway.nodes)
 
             if nodes_exist:
-                self.mari.send_frame(MARI_BROADCAST_ADDRESS, LOAD_PACKET_PAYLOAD)
+                self.mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload(type_=DefaultPayloadType.LOAD_TEST).to_bytes())
             self._stop_event.wait(self.delay)
 
     def set_rate(self):
@@ -137,7 +134,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
             if current_time - last_normal_send_time >= normal_traffic_interval:
                 if mari.nodes:
-                    mari.send_frame(MARI_BROADCAST_ADDRESS, NORMAL_DATA_PAYLOAD)
+                    mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
                 last_normal_send_time = current_time
 
             time.sleep(0.1)

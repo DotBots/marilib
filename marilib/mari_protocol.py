@@ -1,5 +1,6 @@
 import dataclasses
 from dataclasses import dataclass
+from enum import IntEnum
 
 from marilib.protocol import Packet, PacketFieldMetadata, PacketType
 
@@ -74,3 +75,22 @@ class Frame:
     def __repr__(self):
         header_no_metadata = dataclasses.replace(self.header, metadata=[])
         return f"Frame(header={header_no_metadata}, payload={self.payload})"
+
+
+
+class DefaultPayloadType(IntEnum):
+    LOAD_TEST = 1
+    LATENCY_TEST = 2
+    APPLICATION_DATA = 255
+
+
+@dataclass
+class DefaultPayload(Packet):
+    metadata: list[PacketFieldMetadata] = dataclasses.field(
+        default_factory=lambda: [
+            PacketFieldMetadata(name="type", length=1),
+            PacketFieldMetadata(name="needs_ack", length=1),
+        ]
+    )
+    type_: DefaultPayloadType = DefaultPayloadType.APPLICATION_DATA
+    needs_ack: bool = False

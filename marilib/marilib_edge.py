@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Any, Callable
 from rich import print
 
-from marilib.latency import LATENCY_PACKET_MAGIC, LatencyTester
+from marilib.latency import LatencyTester
 from marilib.pdr import PDRTester, PDR_STATS_REQUEST_PAYLOAD
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header
+from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header, DefaultPayload, DefaultPayloadType
 from marilib.model import (
     EdgeEvent,
     GatewayInfo,
@@ -19,8 +19,6 @@ from marilib.protocol import ProtocolPayloadParserException
 from marilib.communication_adapter import MQTTAdapter, MQTTAdapterDummy, SerialAdapter
 from marilib.marilib import MarilibBase
 from marilib.tui_edge import MarilibTUIEdge
-
-LOAD_PACKET_PAYLOAD = b"L"
 
 
 @dataclass
@@ -276,7 +274,5 @@ class MarilibEdge(MarilibBase):
 
     def _is_test_packet(self, payload: bytes) -> bool:
         """Determines if a packet sent FROM the edge is for testing purposes."""
-        is_latency = payload.startswith(LATENCY_PACKET_MAGIC)
-        is_load = payload == LOAD_PACKET_PAYLOAD
-        is_pdr_request = payload == PDR_STATS_REQUEST_PAYLOAD
-        return is_latency or is_load or is_pdr_request
+        payload = DefaultPayload().from_bytes(payload)
+        return payload.type_ in [DefaultPayloadType.LOAD_TEST, DefaultPayloadType.LATENCY_TEST]
