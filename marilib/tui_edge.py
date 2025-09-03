@@ -72,6 +72,8 @@ class MarilibTUIEdge(MarilibTUI):
         status.append(f"0x{mari.gateway.info.address:016X}  |  ")
         status.append("Network ID: ", style="bold cyan")
         status.append(f"0x{mari.gateway.info.network_id:04X}  |  ")
+        status.append("ASN:      ", style="bold cyan")
+        status.append(f"{mari.gateway.info.asn:020d}")
 
         status.append("\n\n")
         status.append("Schedule: ", style="bold cyan")
