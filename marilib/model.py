@@ -121,8 +121,9 @@ class FrameLogEntry:
 
 
 @dataclass
-class LatencyStats:
+class MetricsStats:
     latencies: deque = field(default_factory=lambda: deque(maxlen=50))
+    # TODO: Add PDR stats
 
     def add_latency(self, rtt_seconds: float):
         self.latencies.append(rtt_seconds * 1000)
@@ -142,6 +143,8 @@ class LatencyStats:
     @property
     def max_ms(self) -> float:
         return max(self.latencies) if self.latencies else 0.0
+
+    # TODO: Add PDR stats
 
 
 @dataclass
@@ -229,7 +232,7 @@ class MariNode:
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
     stats: FrameStats = field(default_factory=FrameStats)
-    latency_stats: LatencyStats = field(default_factory=LatencyStats)
+    metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
     last_reported_tx_count: int = 0
     pdr_downlink: float = 0.0
@@ -334,7 +337,7 @@ class MariGateway:
     info: GatewayInfo = field(default_factory=GatewayInfo)
     node_registry: dict[int, MariNode] = field(default_factory=dict)
     stats: FrameStats = field(default_factory=FrameStats)
-    latency_stats: LatencyStats = field(default_factory=LatencyStats)
+    metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_seen: datetime = field(default_factory=lambda: datetime.now())
 
     def __post_init__(self):

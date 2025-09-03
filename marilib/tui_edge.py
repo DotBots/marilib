@@ -84,7 +84,7 @@ class MarilibTUIEdge(MarilibTUI):
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
 
         # --- Latency and PDR Display ---
-        has_latency_info = mari.gateway.latency_stats.last_ms > 0
+        has_latency_info = mari.gateway.metrics_stats.last_ms > 0
 
         nodes_with_pdr_attr = [n for n in mari.gateway.nodes if hasattr(n, "pdr_downlink")]
         downlink_values = [
@@ -98,7 +98,7 @@ class MarilibTUIEdge(MarilibTUI):
 
         # Display Latency
         if has_latency_info:
-            lat = mari.gateway.latency_stats
+            lat = mari.gateway.metrics_stats
             status.append("Latency:    ", style="bold yellow")
             status.append(
                 f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
@@ -132,10 +132,10 @@ class MarilibTUIEdge(MarilibTUI):
 
         stats = mari.gateway.stats
         status.append(f"Nodes: {len(mari.gateway.nodes)}  |  ")
-        status.append(f"Frames TX: {stats.sent_count(include_test_packets=False)}  |  ")
-        status.append(f"Frames RX: {stats.received_count(include_test_packets=False)} |  ")
-        status.append(f"TX/s: {stats.sent_count(1, include_test_packets=False)}  |  ")
-        status.append(f"RX/s: {stats.received_count(1, include_test_packets=False)}")
+        status.append(f"Frames TX: {stats.sent_count(include_test_packets=True)}  |  ")
+        status.append(f"Frames RX: {stats.received_count(include_test_packets=True)} |  ")
+        status.append(f"TX/s: {stats.sent_count(1, include_test_packets=True)}  |  ")
+        status.append(f"RX/s: {stats.received_count(1, include_test_packets=True)}")
 
         return Panel(status, title="[bold]MarilibEdge Status", border_style="blue")
 
@@ -159,7 +159,7 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("Latency (ms)", justify="right")
         for node in nodes:
             lat_str = (
-                f"{node.latency_stats.avg_ms:.1f}" if node.latency_stats.last_ms > 0 else "..."
+                f"{node.metrics_stats.avg_ms:.1f}" if node.metrics_stats.last_ms > 0 else "..."
             )
             pdr_down_str = (
                 f"{node.pdr_downlink:>4.0%}"
@@ -174,10 +174,10 @@ class MarilibTUIEdge(MarilibTUI):
 
             table.add_row(
                 f"0x{node.address:016X}",
-                str(node.stats.sent_count(include_test_packets=False)),
-                str(node.stats.sent_count(1, include_test_packets=False)),
-                str(node.stats.received_count(include_test_packets=False)),
-                str(node.stats.received_count(1, include_test_packets=False)),
+                str(node.stats.sent_count(include_test_packets=True)),
+                str(node.stats.sent_count(1, include_test_packets=True)),
+                str(node.stats.received_count(include_test_packets=True)),
+                str(node.stats.received_count(1, include_test_packets=True)),
                 f"{node.stats.success_rate():>4.0%}",
                 pdr_down_str,
                 pdr_up_str,

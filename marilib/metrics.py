@@ -23,7 +23,7 @@ class MetricsTester:
 
     def start(self):
         """Starts the metrics testing thread."""
-        print("[yellow]Latency tester started.[/]")
+        print("[yellow]Metrics tester started.[/]")
         self._thread.start()
 
     def stop(self):
@@ -55,7 +55,7 @@ class MetricsTester:
     def send_metrics_request(self, address: int):
         """Sends a metrics request packet to a specific address."""
         # convert to microseconds and round to nearest integer
-        time_us = round(time.time() * 1000 * 1000)
+        time_us = int(time.time() * 1000 * 1000)
         payload = MetricsRequestPayload(type_=DefaultPayloadType.METRICS_REQUEST, timestamp_us=time_us).to_bytes()
         self.marilib.send_frame(address, payload)
 
@@ -89,8 +89,8 @@ class MetricsTester:
         node = self.marilib.gateway.get_node(source)
         if node:
             # Update statistics for both the specific node and the whole gateway
-            node.metrics_stats.add_metrics(rtt)
-            self.marilib.gateway.metrics_stats.add_metrics(rtt)
+            node.metrics_stats.add_latency(rtt)
+            self.marilib.gateway.metrics_stats.add_latency(rtt)
 
     def handle_pdr_metric(self, source: int, rx_count: int, tx_count: int):
         pass
