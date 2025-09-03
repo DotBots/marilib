@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 PDR_STATS_REQUEST_PAYLOAD = b"S"
 
+
 class PDRTester:
     """A thread-based class to periodically test PDR to all nodes."""
 
@@ -48,7 +49,7 @@ class PDRTester:
                 if self._stop_event.is_set():
                     break
                 self.send_pdr_request(node.address)
-                
+
                 # Spread requests evenly over the interval
                 sleep_duration = self.interval / len(nodes)
                 self._stop_event.wait(sleep_duration)

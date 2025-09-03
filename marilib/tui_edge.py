@@ -82,15 +82,17 @@ class MarilibTUIEdge(MarilibTUI):
         status.append("Schedule: ", style="bold cyan")
         status.append(f"#{mari.gateway.info.schedule_id} ({mari.gateway.info.schedule_name})  |  ")
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
-        
+
         # --- Latency and PDR Display ---
         has_latency_info = mari.gateway.latency_stats.last_ms > 0
-        
+
         nodes_with_pdr_attr = [n for n in mari.gateway.nodes if hasattr(n, "pdr_downlink")]
-        downlink_values = [n.pdr_downlink for n in nodes_with_pdr_attr if n.pdr_downlink is not None]
+        downlink_values = [
+            n.pdr_downlink for n in nodes_with_pdr_attr if n.pdr_downlink is not None
+        ]
         uplink_values = [n.pdr_uplink for n in nodes_with_pdr_attr if n.pdr_uplink is not None]
         has_pdr_info = bool(downlink_values) or bool(uplink_values)
-        
+
         if has_latency_info or has_pdr_info:
             status.append("\n\n")
 
@@ -98,25 +100,27 @@ class MarilibTUIEdge(MarilibTUI):
         if has_latency_info:
             lat = mari.gateway.latency_stats
             status.append("Latency:    ", style="bold yellow")
-            status.append(f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms")
+            status.append(
+                f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
+            )
 
         # Display separator
         if has_latency_info and has_pdr_info:
             status.append("  |  ")
-        
+
         # Display PDR
         if has_pdr_info:
             pdr_line_parts = []
             if downlink_values:
                 avg_pdr_down = sum(downlink_values) / len(downlink_values)
                 pdr_line_parts.append(f"Down: {avg_pdr_down:.1%}")
-            
+
             if uplink_values:
                 avg_pdr_up = sum(uplink_values) / len(uplink_values)
                 pdr_line_parts.append(f"Up: {avg_pdr_up:.1%}")
-            
+
             status.append("PDR avg:    ", style="bold yellow")
-            status.append(' | '.join(pdr_line_parts))
+            status.append(" | ".join(pdr_line_parts))
 
         status.append("\n\nStats:    ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
@@ -157,8 +161,16 @@ class MarilibTUIEdge(MarilibTUI):
             lat_str = (
                 f"{node.latency_stats.avg_ms:.1f}" if node.latency_stats.last_ms > 0 else "..."
             )
-            pdr_down_str = f"{node.pdr_downlink:>4.0%}" if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None else "..."
-            pdr_up_str = f"{node.pdr_uplink:>4.0%}" if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None else "..."
+            pdr_down_str = (
+                f"{node.pdr_downlink:>4.0%}"
+                if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None
+                else "..."
+            )
+            pdr_up_str = (
+                f"{node.pdr_uplink:>4.0%}"
+                if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None
+                else "..."
+            )
 
             table.add_row(
                 f"0x{node.address:016X}",

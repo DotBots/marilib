@@ -199,7 +199,7 @@ class MarilibEdge(MarilibBase):
                         is_test_packet_for_stats = True
                         if self.latency_tester:
                             self.latency_tester.handle_response(frame)
-                    
+
                     # Handle PDR stats reply packets
                     elif self.pdr_tester and self.pdr_tester.handle_response(frame):
                         is_internal_only = True
@@ -215,7 +215,7 @@ class MarilibEdge(MarilibBase):
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
                 return False, EdgeEvent.UNKNOWN, None
-        
+
         return False, event_type, None
 
     def on_serial_data_received(self, data: bytes):
@@ -224,9 +224,7 @@ class MarilibEdge(MarilibBase):
             return
 
         if self.logger and event_type in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT]:
-            self.logger.log_event(
-                self.gateway.info.address, event_data.address, event_type.name
-            )
+            self.logger.log_event(self.gateway.info.address, event_data.address, event_type.name)
         if event_type == EdgeEvent.GATEWAY_INFO:
             self.mqtt_interface.update(event_data.network_id_str, self.on_mqtt_data_received)
             if self.logger:
