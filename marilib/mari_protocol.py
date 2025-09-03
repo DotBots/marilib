@@ -127,6 +127,9 @@ class Frame:
             self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes()) or \
             self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
 
+    def is_load_test_packet(self) -> bool:
+        return self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
+
     def __repr__(self):
         header_no_metadata = dataclasses.replace(self.header, metadata=[])
         return f"Frame(header={header_no_metadata}, payload={self.payload})"

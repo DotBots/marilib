@@ -93,8 +93,6 @@ class MetricsTester:
             self.marilib.gateway.metrics_stats.add_latency(rtt)
 
     def handle_pdr_metric(self, source: int, rx_count: int, tx_count: int):
-        print(">>> handle_pdr_metric", source, rx_count, tx_count)
-
         try:
             node = self.marilib.gateway.get_node(source)
 

@@ -80,15 +80,14 @@ class MarilibEdge(MarilibBase):
         assert self.serial_interface is not None
 
         mari_frame = Frame(Header(destination=dst), payload=payload)
-        is_test = mari_frame.is_test_packet # FIXME now the frame already knows if it's a test packet
 
         with self.lock:
-            self.gateway.register_sent_frame(mari_frame, is_test)
+            self.gateway.register_sent_frame(mari_frame)
             if dst == MARI_BROADCAST_ADDRESS:
                 for n in self.gateway.nodes:
-                    n.register_sent_frame(mari_frame, is_test)
+                    n.register_sent_frame(mari_frame)
             elif n := self.gateway.get_node(dst):
-                n.register_sent_frame(mari_frame, is_test)
+                n.register_sent_frame(mari_frame)
 
         self.serial_interface.send_data(b"\x01" + mari_frame.to_bytes())
 
@@ -191,7 +190,7 @@ class MarilibEdge(MarilibBase):
                     if frame.is_test_packet and self.metrics_tester:
                         self.metrics_tester.handle_response(frame)
 
-                    self.gateway.register_received_frame(frame, frame.is_test_packet)
+                    self.gateway.register_received_frame(frame)
 
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
