@@ -5,7 +5,6 @@ from typing import Any, Callable
 from rich import print
 
 from marilib.metrics import MetricsTester
-from marilib.pdr import PDRTester, PDR_STATS_REQUEST_PAYLOAD
 from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header, DefaultPayload, DefaultPayloadType
 from marilib.model import (
     EdgeEvent,

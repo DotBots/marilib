@@ -178,7 +178,7 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.sent_count(1, include_test_packets=True)),
                 str(node.stats.received_count(include_test_packets=True)),
                 str(node.stats.received_count(1, include_test_packets=True)),
-                f"{node.stats.success_rate():>4.0%}",
+                f"{node.stats.success_rate(10):>4.0%}",
                 pdr_down_str,
                 pdr_up_str,
                 f"{node.stats.received_rssi_dbm(5)}",
