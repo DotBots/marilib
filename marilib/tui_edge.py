@@ -1,4 +1,6 @@
+from __future__ import annotations
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from rich.columns import Columns
 from rich.console import Console, Group
@@ -8,9 +10,11 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from marilib import MarilibEdge
 from marilib.model import MariNode, TestState
 from marilib.tui import MarilibTUI
+
+if TYPE_CHECKING:
+    from marilib.marilib_edge import MarilibEdge
 
 
 class MarilibTUIEdge(MarilibTUI):
@@ -36,7 +40,7 @@ class MarilibTUIEdge(MarilibTUI):
         available_height = terminal_height - 10 - 2 - 2 - 1 - 2
         return max(2, available_height)
 
-    def render(self, mari: MarilibEdge):
+    def render(self, mari: "MarilibEdge"):
         """Render the TUI layout."""
         with mari.lock:
             if datetime.now() - self.last_render_time < timedelta(seconds=self.re_render_max_freq):
@@ -49,7 +53,7 @@ class MarilibTUIEdge(MarilibTUI):
             )
             self.live.update(layout, refresh=True)
 
-    def create_header_panel(self, mari: MarilibEdge) -> Panel:
+    def create_header_panel(self, mari: "MarilibEdge") -> Panel:
         """Create the header panel with gateway and network stats."""
         status = Text()
         status.append("MarilibEdge is ", style="bold")
@@ -57,10 +61,11 @@ class MarilibTUIEdge(MarilibTUI):
             "connected" if mari.serial_connected else "disconnected",
             style="bold green" if mari.serial_connected else "bold red",
         )
-        status.append(
-            f" via {mari.serial_interface.port} at {mari.serial_interface.baudrate} baud "
-            f"since {mari.started_ts.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        if mari.serial_connected:
+            status.append(
+                f" via {mari.serial_interface.port} at {mari.serial_interface.baudrate} baud "
+                f"since {mari.started_ts.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
         status.append("  |  ")
         secs = int((datetime.now() - mari.last_received_serial_data_ts).total_seconds())
         status.append(
@@ -77,21 +82,46 @@ class MarilibTUIEdge(MarilibTUI):
         status.append("Schedule: ", style="bold cyan")
         status.append(f"#{mari.gateway.info.schedule_id} ({mari.gateway.info.schedule_name})  |  ")
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
-        status.append("\n\n")
+        
+        # --- Latency and PDR Display ---
+        has_latency_info = mari.gateway.latency_stats.last_ms > 0
+        
+        nodes_with_pdr_attr = [n for n in mari.gateway.nodes if hasattr(n, "pdr_downlink")]
+        downlink_values = [n.pdr_downlink for n in nodes_with_pdr_attr if n.pdr_downlink is not None]
+        uplink_values = [n.pdr_uplink for n in nodes_with_pdr_attr if n.pdr_uplink is not None]
+        has_pdr_info = bool(downlink_values) or bool(uplink_values)
+        
+        if has_latency_info or has_pdr_info:
+            status.append("\n\n")
 
-        if mari.gateway.latency_stats.last_ms > 0:
-            status.append("Latency:  ", style="bold cyan")
+        # Display Latency
+        if has_latency_info:
             lat = mari.gateway.latency_stats
-            status.append(
-                f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | "
-                f"Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
-            )
+            status.append("Latency:    ", style="bold yellow")
+            status.append(f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms")
+
+        # Display separator
+        if has_latency_info and has_pdr_info:
+            status.append("  |  ")
+        
+        # Display PDR
+        if has_pdr_info:
+            pdr_line_parts = []
+            if downlink_values:
+                avg_pdr_down = sum(downlink_values) / len(downlink_values)
+                pdr_line_parts.append(f"Down: {avg_pdr_down:.1%}")
+            
+            if uplink_values:
+                avg_pdr_up = sum(uplink_values) / len(uplink_values)
+                pdr_line_parts.append(f"Up: {avg_pdr_up:.1%}")
+            
+            status.append("PDR avg:    ", style="bold yellow")
+            status.append(' | '.join(pdr_line_parts))
 
         status.append("\n\nStats:    ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
             status.append(
                 "Test load: ",
-                # style="bold yellow",
             )
             status.append(f"{self.test_state.load}% of {self.test_state.rate} pps")
             status.append("  |  ")
@@ -106,7 +136,6 @@ class MarilibTUIEdge(MarilibTUI):
         return Panel(status, title="[bold]MarilibEdge Status", border_style="blue")
 
     def create_nodes_table(self, nodes: list[MariNode], title="") -> Table:
-        """Create a table displaying information about connected nodes."""
         table = Table(
             show_header=True,
             header_style="bold cyan",
@@ -128,6 +157,9 @@ class MarilibTUIEdge(MarilibTUI):
             lat_str = (
                 f"{node.latency_stats.avg_ms:.1f}" if node.latency_stats.last_ms > 0 else "..."
             )
+            pdr_down_str = f"{node.pdr_downlink:>4.0%}" if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None else "..."
+            pdr_up_str = f"{node.pdr_uplink:>4.0%}" if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None else "..."
+
             table.add_row(
                 f"0x{node.address:016X}",
                 str(node.stats.sent_count(include_test_packets=False)),
@@ -135,14 +167,14 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.received_count(include_test_packets=False)),
                 str(node.stats.received_count(1, include_test_packets=False)),
                 f"{node.stats.success_rate():>4.0%}",
-                f"{node.pdr_downlink:>4.0%}",
-                f"{node.pdr_uplink:>4.0%}",
+                pdr_down_str,
+                pdr_up_str,
                 f"{node.stats.received_rssi_dbm(5)}",
                 lat_str,
             )
         return table
 
-    def create_nodes_panel(self, mari: MarilibEdge) -> Panel:
+    def create_nodes_panel(self, mari: "MarilibEdge") -> Panel:
         """Create the panel that contains the nodes table."""
         nodes = mari.gateway.nodes
         max_rows = self.get_max_rows()

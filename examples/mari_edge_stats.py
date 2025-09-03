@@ -118,6 +118,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
     stop_event = threading.Event()
 
     mari.latency_test_enable()
+    mari.pdr_test_enable()
 
     load_tester = LoadTester(mari, test_state, stop_event)
     if load > 0:
@@ -146,6 +147,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
     finally:
         stop_event.set()
         mari.latency_test_disable()
+        mari.pdr_test_disable()
         if load_tester.is_alive():
             load_tester.join()
         mari.close_tui()

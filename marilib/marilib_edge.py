@@ -5,6 +5,7 @@ from typing import Any, Callable
 from rich import print
 
 from marilib.latency import LATENCY_PACKET_MAGIC, LatencyTester
+from marilib.pdr import PDRTester, PDR_STATS_REQUEST_PAYLOAD
 from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header
 from marilib.model import (
     EdgeEvent,
@@ -40,6 +41,7 @@ class MarilibEdge(MarilibBase):
     gateway: MariGateway = field(default_factory=MariGateway)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     latency_tester: LatencyTester | None = None
+    pdr_tester: PDRTester | None = None
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_serial_data_ts: datetime = field(default_factory=datetime.now)
@@ -53,7 +55,6 @@ class MarilibEdge(MarilibBase):
         if self.mqtt_interface is None:
             self.mqtt_interface = MQTTAdapterDummy()
         self.serial_interface.init(self.on_serial_data_received)
-        # NOTE: MQTT interface will only be initialized when the network_id is known
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
 
@@ -85,7 +86,6 @@ class MarilibEdge(MarilibBase):
         is_test = self._is_test_packet(payload)
 
         with self.lock:
-            # Only register statistics for normal data packets, not for test packets.
             self.gateway.register_sent_frame(mari_frame, is_test)
             if dst == MARI_BROADCAST_ADDRESS:
                 for n in self.gateway.nodes:
@@ -93,7 +93,6 @@ class MarilibEdge(MarilibBase):
             elif n := self.gateway.get_node(dst):
                 n.register_sent_frame(mari_frame, is_test)
 
-        # FIXME: instead of prefixing with a magic 0x01 byte, we should use EdgeEvent.NODE_DATA
         self.serial_interface.send_data(b"\x01" + mari_frame.to_bytes())
 
     def render_tui(self):
@@ -138,23 +137,17 @@ class MarilibEdge(MarilibBase):
             print(f"[red]Error parsing frame: {exc}[/]")
             return
         if event_type != EdgeEvent.NODE_DATA:
-            # ignore non-data events
             return
         if frame.header.destination != MARI_BROADCAST_ADDRESS and not self.gateway.get_node(
             frame.header.destination
         ):
-            # ignore frames for unknown nodes
             return
         self.send_frame(frame.header.destination, frame.payload)
 
     def handle_serial_data(self, data: bytes) -> tuple[bool, EdgeEvent, Any]:
         """
-        Handles the serial data received from the radio gateway:
-        - parses the event
-        - updates node or gateway information
-        - returns the event type and data
+        Handles the serial data received from the radio gateway.
         """
-
         if len(data) < 1:
             return False, EdgeEvent.UNKNOWN, None
 
@@ -196,30 +189,58 @@ class MarilibEdge(MarilibBase):
                 frame = Frame().from_bytes(data[1:])
                 with self.lock:
                     self.gateway.update_node_liveness(frame.header.source)
-                    # ---- handle test packets ----
-                    is_test_packet = self._is_test_packet(frame.payload)
-                    if self.latency_tester and frame.payload.startswith(LATENCY_PACKET_MAGIC):
-                        self.latency_tester.handle_response(frame)
-                    # ---- handle normal packets ----
-                    self.gateway.register_received_frame(frame, is_test_packet=is_test_packet)
+
+                    is_internal_only = False
+                    is_test_packet_for_stats = False
+
+                    # Handle latency packets
+                    if frame.payload.startswith(LATENCY_PACKET_MAGIC):
+                        is_internal_only = True
+                        is_test_packet_for_stats = True
+                        if self.latency_tester:
+                            self.latency_tester.handle_response(frame)
+                    
+                    # Handle PDR stats reply packets
+                    elif self.pdr_tester and self.pdr_tester.handle_response(frame):
+                        is_internal_only = True
+
+                    # Handle received load test packets
+                    if frame.payload == LOAD_PACKET_PAYLOAD:
+                        is_test_packet_for_stats = True
+
+                    self.gateway.register_received_frame(frame, is_test_packet_for_stats)
+
+                    frame.is_internal_only = is_internal_only
+
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
                 return False, EdgeEvent.UNKNOWN, None
-        return True, event_type, None
+        
+        return False, event_type, None
 
     def on_serial_data_received(self, data: bytes):
         res, event_type, event_data = self.handle_serial_data(data)
-        if res:
-            if self.logger and event_type in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT]:
-                self.logger.log_event(
-                    self.gateway.info.address, event_data.address, event_type.name
-                )
-            if event_type == EdgeEvent.GATEWAY_INFO:
-                # when the first GATEWAY_INFO is received, this will cause the MQTT interface to be initialized
-                self.mqtt_interface.update(event_data.network_id_str, self.on_mqtt_data_received)
-                if self.logger:
-                    self.setup_params["schedule_name"] = self.gateway.info.schedule_name
-                    self.logger.log_setup_parameters(self.setup_params)
+        if not res:
+            return
+
+        if self.logger and event_type in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT]:
+            self.logger.log_event(
+                self.gateway.info.address, event_data.address, event_type.name
+            )
+        if event_type == EdgeEvent.GATEWAY_INFO:
+            self.mqtt_interface.update(event_data.network_id_str, self.on_mqtt_data_received)
+            if self.logger:
+                self.setup_params["schedule_name"] = self.gateway.info.schedule_name
+                self.logger.log_setup_parameters(self.setup_params)
+
+        # Only pass non-internal packets to the application callback and the cloud.
+        is_internal_packet = (
+            event_type == EdgeEvent.NODE_DATA
+            and hasattr(event_data, "is_internal_only")
+            and event_data.is_internal_only
+        )
+
+        if not is_internal_packet:
             self.cb_application(event_type, event_data)
             self.send_data_to_cloud(event_type, event_data)
 
@@ -227,7 +248,6 @@ class MarilibEdge(MarilibBase):
         self, event_type: EdgeEvent, event_data: NodeInfoEdge | GatewayInfo | Frame
     ):
         if event_type in [EdgeEvent.NODE_JOINED, EdgeEvent.NODE_LEFT, EdgeEvent.NODE_KEEP_ALIVE]:
-            # the cloud needs to know which gateway the node belongs to
             event_data = event_data.to_cloud(self.gateway.info.address)
         data = EdgeEvent.to_bytes(event_type) + event_data.to_bytes()
         self.mqtt_interface.send_data_to_cloud(data)
@@ -244,10 +264,21 @@ class MarilibEdge(MarilibBase):
             self.latency_tester.stop()
             self.latency_tester = None
 
+    def pdr_test_enable(self):
+        if self.pdr_tester is None:
+            self.pdr_tester = PDRTester(self)
+            self.pdr_tester.start()
+
+    def pdr_test_disable(self):
+        if self.pdr_tester is not None:
+            self.pdr_tester.stop()
+            self.pdr_tester = None
+
     # ============================ Private methods =============================
 
     def _is_test_packet(self, payload: bytes) -> bool:
-        """Determines if a packet is for testing purposes (load or latency)."""
+        """Determines if a packet sent FROM the edge is for testing purposes."""
         is_latency = payload.startswith(LATENCY_PACKET_MAGIC)
         is_load = payload == LOAD_PACKET_PAYLOAD
-        return is_latency or is_load
+        is_pdr_request = payload == PDR_STATS_REQUEST_PAYLOAD
+        return is_latency or is_load or is_pdr_request

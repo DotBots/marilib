@@ -4,10 +4,11 @@ import time
 from typing import TYPE_CHECKING
 import math
 
+from rich import print
 from marilib.mari_protocol import Frame
 
 if TYPE_CHECKING:
-    from marilib.marilib import MariLib
+    from marilib.marilib_edge import MarilibEdge
 
 LATENCY_PACKET_MAGIC = b"\x4c\x54"  # "LT" for Latency Test
 
@@ -15,7 +16,7 @@ LATENCY_PACKET_MAGIC = b"\x4c\x54"  # "LT" for Latency Test
 class LatencyTester:
     """A thread-based class to periodically test latency to all nodes."""
 
-    def __init__(self, marilib: "MariLib", interval: float = 10.0):
+    def __init__(self, marilib: "MarilibEdge", interval: float = 10.0):
         self.marilib = marilib
         self.interval = interval
         self._stop_event = threading.Event()
@@ -29,25 +30,31 @@ class LatencyTester:
     def stop(self):
         """Stops the latency testing thread."""
         self._stop_event.set()
-        self._thread.join()
+        if self._thread.is_alive():
+            self._thread.join()
         print("[yellow]Latency tester stopped.[/]")
 
     def _run(self):
         """The main loop for the testing thread."""
+        # Initial delay to allow nodes to join
+        self._stop_event.wait(self.interval)
+
         while not self._stop_event.is_set():
-            if not self.marilib.nodes:
-                time.sleep(self.interval)
+            nodes = list(self.marilib.nodes)
+            if not nodes:
+                self._stop_event.wait(self.interval)
                 continue
 
-            for node in list(self.marilib.nodes):
+            for node in nodes:
                 if self._stop_event.is_set():
                     break
                 self.send_latency_request(node.address)
-                time.sleep(self.interval / len(self.marilib.nodes))
+                # Spread the requests evenly over the interval
+                sleep_duration = self.interval / len(nodes)
+                self._stop_event.wait(sleep_duration)
 
     def send_latency_request(self, address: int):
         """Sends a latency request packet to a specific address."""
-
         payload = LATENCY_PACKET_MAGIC + struct.pack("<d", time.time())
         self.marilib.send_frame(address, payload)
 
