@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Callable
 from rich import print
 
-from marilib.latency import LatencyTester
+from marilib.metrics import MetricsTester
 from marilib.pdr import PDRTester, PDR_STATS_REQUEST_PAYLOAD
 from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header, DefaultPayload, DefaultPayloadType
 from marilib.model import (
@@ -38,8 +38,7 @@ class MarilibEdge(MarilibBase):
     logger: Any | None = None
     gateway: MariGateway = field(default_factory=MariGateway)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
-    latency_tester: LatencyTester | None = None
-    pdr_tester: PDRTester | None = None
+    metrics_tester: MetricsTester | None = None
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_serial_data_ts: datetime = field(default_factory=datetime.now)
@@ -81,7 +80,7 @@ class MarilibEdge(MarilibBase):
         assert self.serial_interface is not None
 
         mari_frame = Frame(Header(destination=dst), payload=payload)
-        is_test = self._is_test_packet(payload)
+        is_test = mari_frame.is_test_packet # FIXME now the frame already knows if it's a test packet
 
         with self.lock:
             self.gateway.register_sent_frame(mari_frame, is_test)
@@ -188,27 +187,11 @@ class MarilibEdge(MarilibBase):
                 with self.lock:
                     self.gateway.update_node_liveness(frame.header.source)
 
-                    is_internal_only = False
-                    is_test_packet_for_stats = False
-
                     # Handle latency packets
-                    if frame.payload.startswith(LATENCY_PACKET_MAGIC):
-                        is_internal_only = True
-                        is_test_packet_for_stats = True
-                        if self.latency_tester:
-                            self.latency_tester.handle_response(frame)
+                    if frame.is_test_packet and self.metrics_tester:
+                        self.metrics_tester.handle_response(frame)
 
-                    # Handle PDR stats reply packets
-                    elif self.pdr_tester and self.pdr_tester.handle_response(frame):
-                        is_internal_only = True
-
-                    # Handle received load test packets
-                    if frame.payload == LOAD_PACKET_PAYLOAD:
-                        is_test_packet_for_stats = True
-
-                    self.gateway.register_received_frame(frame, is_test_packet_for_stats)
-
-                    frame.is_internal_only = is_internal_only
+                    self.gateway.register_received_frame(frame, frame.is_test_packet)
 
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
@@ -229,16 +212,11 @@ class MarilibEdge(MarilibBase):
                 self.setup_params["schedule_name"] = self.gateway.info.schedule_name
                 self.logger.log_setup_parameters(self.setup_params)
 
-        # Only pass non-internal packets to the application callback and the cloud.
-        is_internal_packet = (
-            event_type == EdgeEvent.NODE_DATA
-            and hasattr(event_data, "is_internal_only")
-            and event_data.is_internal_only
-        )
-
-        if not is_internal_packet:
+        if event_type == EdgeEvent.NODE_DATA and not event_data.is_test_packet:
+            # only notify the application if it's not a test packet
             self.cb_application(event_type, event_data)
-            self.send_data_to_cloud(event_type, event_data)
+
+        self.send_data_to_cloud(event_type, event_data)
 
     def send_data_to_cloud(
         self, event_type: EdgeEvent, event_data: NodeInfoEdge | GatewayInfo | Frame
@@ -250,25 +228,15 @@ class MarilibEdge(MarilibBase):
 
     # ============================ Utility methods =============================
 
-    def latency_test_enable(self):
-        if self.latency_tester is None:
-            self.latency_tester = LatencyTester(self)
-            self.latency_tester.start()
+    def metrics_test_enable(self):
+        if self.metrics_tester is None:
+            self.metrics_tester = MetricsTester(self)
+            self.metrics_tester.start()
 
-    def latency_test_disable(self):
-        if self.latency_tester is not None:
-            self.latency_tester.stop()
-            self.latency_tester = None
-
-    def pdr_test_enable(self):
-        if self.pdr_tester is None:
-            self.pdr_tester = PDRTester(self)
-            self.pdr_tester.start()
-
-    def pdr_test_disable(self):
-        if self.pdr_tester is not None:
-            self.pdr_tester.stop()
-            self.pdr_tester = None
+    def metrics_test_disable(self):
+        if self.metrics_tester is not None:
+            self.metrics_tester.stop()
+            self.metrics_tester = None
 
     # ============================ Private methods =============================
 

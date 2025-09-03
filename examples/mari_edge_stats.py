@@ -40,7 +40,7 @@ class LoadTester(threading.Thread):
                 nodes_exist = bool(self.mari.gateway.nodes)
 
             if nodes_exist:
-                self.mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload(type_=DefaultPayloadType.LOAD_TEST).to_bytes())
+                self.mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).to_bytes())
             self._stop_event.wait(self.delay)
 
     def set_rate(self):
@@ -114,8 +114,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
     stop_event = threading.Event()
 
-    mari.latency_test_enable()
-    mari.pdr_test_enable()
+    mari.metrics_test_enable()
 
     load_tester = LoadTester(mari, test_state, stop_event)
     if load > 0:
@@ -143,8 +142,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
         pass
     finally:
         stop_event.set()
-        mari.latency_test_disable()
-        mari.pdr_test_disable()
+        mari.metrics_test_disable()
         if load_tester.is_alive():
             load_tester.join()
         mari.close_tui()

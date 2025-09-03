@@ -9,6 +9,54 @@ MARI_BROADCAST_ADDRESS = 0xFFFFFFFFFFFFFFFF
 MARI_NET_ID_DEFAULT = 0x0001
 
 
+class DefaultPayloadType(IntEnum):
+    APPLICATION_DATA = 1
+    METRICS_REQUEST = 128
+    METRICS_RESPONSE = 129
+    METRICS_LOAD = 130
+
+    def as_bytes(self) -> bytes:
+        return bytes([self.value])
+
+
+@dataclass
+class DefaultPayload(Packet):
+    metadata: list[PacketFieldMetadata] = dataclasses.field(
+        default_factory=lambda: [
+            PacketFieldMetadata(name="type", length=1),
+        ]
+    )
+    type_: DefaultPayloadType = DefaultPayloadType.APPLICATION_DATA
+
+
+@dataclass
+class MetricsRequestPayload(Packet):
+    metadata: list[PacketFieldMetadata] = dataclasses.field(
+        default_factory=lambda: [
+            PacketFieldMetadata(name="type", length=1),
+            PacketFieldMetadata(name="timestamp_us", length=8),
+        ]
+    )
+    type_: DefaultPayloadType = DefaultPayloadType.METRICS_REQUEST
+    timestamp_us: int = 0
+
+
+@dataclass
+class MetricsResponsePayload(Packet):
+    metadata: list[PacketFieldMetadata] = dataclasses.field(
+        default_factory=lambda: [
+            PacketFieldMetadata(name="type", length=1),
+            PacketFieldMetadata(name="timestamp_us", length=8),
+            PacketFieldMetadata(name="rx_count", length=4),
+            PacketFieldMetadata(name="tx_count", length=4),
+        ]
+    )
+    type_: DefaultPayloadType = DefaultPayloadType.METRICS_RESPONSE
+    timestamp_us: int = 0
+    rx_count: int = 0
+    tx_count: int = 0
+
+
 @dataclass
 class HeaderStats(Packet):
     """Dataclass that holds MAC header stats."""
@@ -72,25 +120,13 @@ class Frame:
         stats_bytes = self.stats.to_bytes(byteorder)
         return header_bytes + stats_bytes + self.payload
 
+    @property
+    def is_test_packet(self) -> bool:
+        """Returns True if either the payload is a metrics response, request, or load test packet."""
+        return self.payload.startswith(DefaultPayloadType.METRICS_RESPONSE.as_bytes()) or \
+            self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes()) or \
+            self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
+
     def __repr__(self):
         header_no_metadata = dataclasses.replace(self.header, metadata=[])
         return f"Frame(header={header_no_metadata}, payload={self.payload})"
-
-
-
-class DefaultPayloadType(IntEnum):
-    LOAD_TEST = 1
-    LATENCY_TEST = 2
-    APPLICATION_DATA = 255
-
-
-@dataclass
-class DefaultPayload(Packet):
-    metadata: list[PacketFieldMetadata] = dataclasses.field(
-        default_factory=lambda: [
-            PacketFieldMetadata(name="type", length=1),
-            PacketFieldMetadata(name="needs_ack", length=1),
-        ]
-    )
-    type_: DefaultPayloadType = DefaultPayloadType.APPLICATION_DATA
-    needs_ack: bool = False
