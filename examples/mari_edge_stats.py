@@ -131,10 +131,10 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
             mari.render_tui()
 
-            if current_time - last_normal_send_time >= normal_traffic_interval:
-                if mari.nodes:
-                    mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
-                last_normal_send_time = current_time
+            # if current_time - last_normal_send_time >= normal_traffic_interval:
+            #     if mari.nodes:
+            #         mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
+            #     last_normal_send_time = current_time
 
             time.sleep(0.1)
 

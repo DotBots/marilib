@@ -127,6 +127,7 @@ class Frame:
             self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes()) or \
             self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
 
+    @property
     def is_load_test_packet(self) -> bool:
         return self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
 
