@@ -93,6 +93,7 @@ class MetricsTester:
             self.marilib.gateway.metrics_stats.add_latency(rtt)
 
     def handle_pdr_metric(self, source: int, rx_count: int, tx_count: int):
+        # print(f">>> handle_pdr_metric rx_count={rx_count} tx_count={tx_count}")
         try:
             node = self.marilib.gateway.get_node(source)
 
@@ -102,7 +103,7 @@ class MetricsTester:
                 node.last_reported_tx_count = tx_count
 
                 # Calculate Downlink PDR
-                sent_count = node.stats.sent_count(include_test_packets=False)
+                sent_count = node.stats.sent_count(include_test_packets=True)
                 if sent_count > 0:
                     pdr = node.last_reported_rx_count / sent_count
                     node.pdr_downlink = min(pdr, 1.0)
@@ -110,12 +111,16 @@ class MetricsTester:
                     node.pdr_downlink = 0.0
 
                 # Calculate Uplink PDR
-                received_count = node.stats.received_count(include_test_packets=False)
+                received_count = node.stats.received_count(include_test_packets=True)
                 if node.last_reported_tx_count > 0:
                     pdr = received_count / node.last_reported_tx_count
                     node.pdr_uplink = min(pdr, 1.0)
                 else:
                     node.pdr_uplink = 0.0
+
+                # print(f">>> sent_count={sent_count} received_count={received_count}")
+                # print(f">>>>> pdr_downlink={node.pdr_downlink} pdr_uplink={node.pdr_uplink}")
+                # print()
 
         except Exception as e:
             print(f"[red]Error parsing metrics response: {e}[/]")
