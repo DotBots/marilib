@@ -279,12 +279,16 @@ class GatewayInfo(Packet):
             PacketFieldMetadata(name="network_id", length=2),
             PacketFieldMetadata(name="schedule_id", length=1),
             PacketFieldMetadata(name="schedule_stats", length=4 * 8),  # 4 uint64_t values
+            PacketFieldMetadata(name="asn", length=8),
+            PacketFieldMetadata(name="timer", length=4),
         ]
     )
     address: int = 0
     network_id: int = 0
     schedule_id: int = 0
     schedule_stats: bytes = b""
+    asn: int = 0
+    timer: int = 0
 
     # NOTE: maybe move to a separate class, dedicated to schedule stuff
     def repr_schedule_stats(self):
