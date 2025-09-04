@@ -86,13 +86,21 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame | GatewayInfo):
     help="Load percentage to apply (0–100)",
 )
 @click.option(
+    "--send-periodic",
+    "-s",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Send periodic packet every N seconds (0 = disabled)",
+)
+@click.option(
     "--log-dir",
     default="logs",
     show_default=True,
     help="Directory to save metric log files.",
     type=click.Path(),
 )
-def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
+def main(port: str | None, mqtt_host: str, load: int, send_periodic: float, log_dir: str):
     if not (0 <= load <= 100):
         sys.stderr.write("Error: --load must be between 0 and 100.\n")
         return
@@ -121,8 +129,9 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
         load_tester.start()
 
     try:
-        normal_traffic_interval = 0.5
-        last_normal_send_time = 0
+        if send_periodic > 0:
+            normal_traffic_interval = send_periodic
+            last_normal_send_time = 0
 
         while not stop_event.is_set():
             current_time = time.monotonic()
@@ -131,10 +140,10 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
             mari.render_tui()
 
-            # if current_time - last_normal_send_time >= normal_traffic_interval:
-            #     if mari.nodes:
-            #         mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
-            #     last_normal_send_time = current_time
+            if send_periodic > 0 and current_time - last_normal_send_time >= normal_traffic_interval:
+                if mari.nodes:
+                    mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
+                last_normal_send_time = current_time
 
             time.sleep(0.1)
 
