@@ -15,7 +15,9 @@ exclude = [
 path = "marilib/__init__.py"
 
 [project]
-name = "marilib"
+# pypi complains that "the name 'marilib' is too similar to other packages"
+# so we use a -pkg postfix to circunvent that
+name = "marilib-pkg"
 dynamic = ["version"]
 authors = [
     { name="Geovane Fedrecheski", email="geovane.fedrecheski@inria.fr" },
