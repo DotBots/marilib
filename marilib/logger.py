@@ -145,7 +145,7 @@ class MetricsLogger:
             gateway.stats.received_count(include_test_packets=False),
             gateway.stats.sent_count(1, include_test_packets=False),
             gateway.stats.received_count(1, include_test_packets=False),
-            f"{gateway.latency_stats.avg_ms:.2f}",
+            f"{gateway.metrics_stats.avg_ms:.2f}",
         ]
         self._gateway_writer.writerow(row)
 
@@ -170,8 +170,8 @@ class MetricsLogger:
                 f"{node.pdr_downlink:.2%}",
                 f"{node.pdr_uplink:.2%}",
                 node.stats.received_rssi_dbm(5),
-                f"{node.latency_stats.last_ms:.2f}",
-                f"{node.latency_stats.avg_ms:.2f}",
+                f"{node.metrics_stats.last_ms:.2f}",
+                f"{node.metrics_stats.avg_ms:.2f}",
             ]
             self._nodes_writer.writerow(row)
 

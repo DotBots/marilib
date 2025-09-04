@@ -117,12 +117,12 @@ class NodeStatsReply(Packet):
 class FrameLogEntry:
     frame: Frame
     ts: datetime = field(default_factory=lambda: datetime.now())
-    is_test_packet: bool = False
 
 
 @dataclass
-class LatencyStats:
+class MetricsStats:
     latencies: deque = field(default_factory=lambda: deque(maxlen=50))
+    # TODO: Add PDR stats
 
     def add_latency(self, rtt_seconds: float):
         self.latencies.append(rtt_seconds * 1000)
@@ -143,6 +143,8 @@ class LatencyStats:
     def max_ms(self) -> float:
         return max(self.latencies) if self.latencies else 0.0
 
+    # TODO: Add PDR stats
+
 
 @dataclass
 class FrameStats:
@@ -154,40 +156,53 @@ class FrameStats:
     cumulative_sent_non_test: int = 0
     cumulative_received_non_test: int = 0
 
-    def add_sent(self, frame: Frame, is_test_packet: bool):
+    def add_sent(self, frame: Frame):
         """Adds a sent frame, prunes old entries, and updates counters."""
+        if frame.is_load_test_packet:
+            # never register stats for load test packets
+            return
+
         self.cumulative_sent += 1
+        if not frame.is_test_packet:
+            self.cumulative_sent_non_test += 1  # NOTE: do we need this?
 
-        if not is_test_packet:
-            self.cumulative_sent_non_test += 1
+        entry = FrameLogEntry(frame=frame)
+        self.sent.append(entry)
 
-            entry = FrameLogEntry(frame=frame, is_test_packet=is_test_packet)
-            self.sent.append(entry)
-            while self.sent and (entry.ts - self.sent[0].ts).total_seconds() > self.window_seconds:
-                self.sent.popleft()
+        # remove old entries
+        while self.sent and (entry.ts - self.sent[0].ts).total_seconds() > self.window_seconds:
+            self.sent.popleft()
 
-    def add_received(self, frame: Frame, is_test_packet: bool):
+    def add_received(self, frame: Frame):
         """Adds a received frame and prunes old entries."""
         self.cumulative_received += 1
+        if not frame.is_test_packet:
+            self.cumulative_received_non_test += 1  # NOTE: do we need this?
 
-        if not is_test_packet:
-            self.cumulative_received_non_test += 1
-            entry = FrameLogEntry(frame=frame, is_test_packet=is_test_packet)
-            self.received.append(entry)
-            while (
-                self.received
-                and (entry.ts - self.received[0].ts).total_seconds() > self.window_seconds
-            ):
-                self.received.popleft()
+        entry = FrameLogEntry(frame=frame)
+        self.received.append(entry)
+
+        # remove old entries
+        while (
+            self.received and (entry.ts - self.received[0].ts).total_seconds() > self.window_seconds
+        ):
+            self.received.popleft()
 
     def sent_count(self, window_secs: int = 0, include_test_packets: bool = True) -> int:
         if window_secs == 0:
             return self.cumulative_sent if include_test_packets else self.cumulative_sent_non_test
 
         now = datetime.now()
-        # Windowed count is always for non-test packets.
-        entries = [e for e in self.sent if now - e.ts < timedelta(seconds=window_secs)]
-        return len(entries)
+        if include_test_packets:
+            return len([e for e in self.sent if now - e.ts < timedelta(seconds=window_secs)])
+        else:
+            return len(
+                [
+                    e
+                    for e in self.sent
+                    if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet
+                ]
+            )
 
     def received_count(self, window_secs: int = 0, include_test_packets: bool = True) -> int:
         if window_secs == 0:
@@ -198,14 +213,21 @@ class FrameStats:
             )
 
         now = datetime.now()
-        entries = [e for e in self.received if now - e.ts < timedelta(seconds=window_secs)]
+        if include_test_packets:
+            entries = [e for e in self.received if now - e.ts < timedelta(seconds=window_secs)]
+        else:
+            entries = [
+                e
+                for e in self.received
+                if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet
+            ]
         return len(entries)
 
     def success_rate(self, window_secs: int = 0) -> float:
-        s = self.sent_count(window_secs, include_test_packets=False)
+        s = self.sent_count(window_secs, include_test_packets=True)
         if s == 0:
             return 1.0
-        r = self.received_count(window_secs, include_test_packets=False)
+        r = self.received_count(window_secs, include_test_packets=True)
         return min(r / s, 1.0)
 
     def received_rssi_dbm(self, window_secs: int = 0) -> float:
@@ -229,7 +251,7 @@ class MariNode:
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
     stats: FrameStats = field(default_factory=FrameStats)
-    latency_stats: LatencyStats = field(default_factory=LatencyStats)
+    metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
     last_reported_tx_count: int = 0
     pdr_downlink: float = 0.0
@@ -239,11 +261,11 @@ class MariNode:
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_NODE_IS_ALIVE)
 
-    def register_received_frame(self, frame: Frame, is_test_packet: bool):
-        self.stats.add_received(frame, is_test_packet)
+    def register_received_frame(self, frame: Frame):
+        self.stats.add_received(frame)
 
-    def register_sent_frame(self, frame: Frame, is_test_packet: bool):
-        self.stats.add_sent(frame, is_test_packet)
+    def register_sent_frame(self, frame: Frame):
+        self.stats.add_sent(frame)
 
     def as_node_info_cloud(self) -> NodeInfoCloud:
         return NodeInfoCloud(address=self.address, gateway_address=self.gateway_address)
@@ -334,7 +356,7 @@ class MariGateway:
     info: GatewayInfo = field(default_factory=GatewayInfo)
     node_registry: dict[int, MariNode] = field(default_factory=dict)
     stats: FrameStats = field(default_factory=FrameStats)
-    latency_stats: LatencyStats = field(default_factory=LatencyStats)
+    metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_seen: datetime = field(default_factory=lambda: datetime.now())
 
     def __post_init__(self):
@@ -384,10 +406,10 @@ class MariGateway:
             node = self.add_node(addr)
         return node
 
-    def register_received_frame(self, frame: Frame, is_test_packet: bool):
+    def register_received_frame(self, frame: Frame):
         if n := self.get_node(frame.header.source):
-            n.register_received_frame(frame, is_test_packet)
-        self.stats.add_received(frame, is_test_packet)
+            n.register_received_frame(frame)
+        self.stats.add_received(frame)
 
-    def register_sent_frame(self, frame: Frame, is_test_packet: bool):
-        self.stats.add_sent(frame, is_test_packet)
+    def register_sent_frame(self, frame: Frame):
+        self.stats.add_sent(frame)

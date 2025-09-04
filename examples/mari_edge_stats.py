@@ -4,15 +4,12 @@ import time
 
 import click
 from marilib.logger import MetricsLogger
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame
+from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, DefaultPayload, DefaultPayloadType
 from marilib.marilib_edge import MarilibEdge
 from marilib.model import EdgeEvent, GatewayInfo, MariNode, TestState
 from marilib.serial_uart import get_default_port
 from marilib.tui_edge import MarilibTUIEdge
 from marilib.communication_adapter import SerialAdapter, MQTTAdapter
-
-LOAD_PACKET_PAYLOAD = b"L"
-NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 
 
 class LoadTester(threading.Thread):
@@ -43,7 +40,10 @@ class LoadTester(threading.Thread):
                 nodes_exist = bool(self.mari.gateway.nodes)
 
             if nodes_exist:
-                self.mari.send_frame(MARI_BROADCAST_ADDRESS, LOAD_PACKET_PAYLOAD)
+                self.mari.send_frame(
+                    MARI_BROADCAST_ADDRESS,
+                    DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).to_bytes(),
+                )
             self._stop_event.wait(self.delay)
 
     def set_rate(self):
@@ -89,13 +89,21 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame | GatewayInfo):
     help="Load percentage to apply (0–100)",
 )
 @click.option(
+    "--send-periodic",
+    "-s",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Send periodic packet every N seconds (0 = disabled)",
+)
+@click.option(
     "--log-dir",
     default="logs",
     show_default=True,
     help="Directory to save metric log files.",
     type=click.Path(),
 )
-def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
+def main(port: str | None, mqtt_host: str, load: int, send_periodic: float, log_dir: str):
     if not (0 <= load <= 100):
         sys.stderr.write("Error: --load must be between 0 and 100.\n")
         return
@@ -117,15 +125,16 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
     stop_event = threading.Event()
 
-    mari.latency_test_enable()
+    mari.metrics_test_enable()
 
     load_tester = LoadTester(mari, test_state, stop_event)
     if load > 0:
         load_tester.start()
 
     try:
-        normal_traffic_interval = 0.5
-        last_normal_send_time = 0
+        if send_periodic > 0:
+            normal_traffic_interval = send_periodic
+            last_normal_send_time = 0
 
         while not stop_event.is_set():
             current_time = time.monotonic()
@@ -134,9 +143,12 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
 
             mari.render_tui()
 
-            if current_time - last_normal_send_time >= normal_traffic_interval:
+            if (
+                send_periodic > 0
+                and current_time - last_normal_send_time >= normal_traffic_interval
+            ):
                 if mari.nodes:
-                    mari.send_frame(MARI_BROADCAST_ADDRESS, NORMAL_DATA_PAYLOAD)
+                    mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
                 last_normal_send_time = current_time
 
             time.sleep(0.1)
@@ -145,7 +157,7 @@ def main(port: str | None, mqtt_host: str, load: int, log_dir: str):
         pass
     finally:
         stop_event.set()
-        mari.latency_test_disable()
+        mari.metrics_test_disable()
         if load_tester.is_alive():
             load_tester.join()
         mari.close_tui()

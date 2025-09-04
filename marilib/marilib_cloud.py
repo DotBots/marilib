@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
 
-from marilib.latency import LatencyTester
+from marilib.metrics import MetricsTester
 from marilib.mari_protocol import Frame, Header
 from marilib.model import (
     EdgeEvent,
@@ -34,7 +34,7 @@ class MarilibCloud(MarilibBase):
     logger: Any | None = None
     gateways: dict[int, MariGateway] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
-    latency_tester: LatencyTester | None = None
+    metrics_tester: MetricsTester | None = None
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_mqtt_data_ts: datetime = field(default_factory=datetime.now)
