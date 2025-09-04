@@ -5,7 +5,13 @@ from typing import Any, Callable
 from rich import print
 
 from marilib.metrics import MetricsTester
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, Frame, Header, DefaultPayload, DefaultPayloadType
+from marilib.mari_protocol import (
+    MARI_BROADCAST_ADDRESS,
+    Frame,
+    Header,
+    DefaultPayload,
+    DefaultPayloadType,
+)
 from marilib.model import (
     EdgeEvent,
     GatewayInfo,

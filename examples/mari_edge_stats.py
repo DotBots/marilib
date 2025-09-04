@@ -40,7 +40,10 @@ class LoadTester(threading.Thread):
                 nodes_exist = bool(self.mari.gateway.nodes)
 
             if nodes_exist:
-                self.mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).to_bytes())
+                self.mari.send_frame(
+                    MARI_BROADCAST_ADDRESS,
+                    DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).to_bytes(),
+                )
             self._stop_event.wait(self.delay)
 
     def set_rate(self):
@@ -140,7 +143,10 @@ def main(port: str | None, mqtt_host: str, load: int, send_periodic: float, log_
 
             mari.render_tui()
 
-            if send_periodic > 0 and current_time - last_normal_send_time >= normal_traffic_interval:
+            if (
+                send_periodic > 0
+                and current_time - last_normal_send_time >= normal_traffic_interval
+            ):
                 if mari.nodes:
                     mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
                 last_normal_send_time = current_time

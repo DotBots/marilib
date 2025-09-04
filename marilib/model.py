@@ -164,7 +164,7 @@ class FrameStats:
 
         self.cumulative_sent += 1
         if not frame.is_test_packet:
-            self.cumulative_sent_non_test += 1 # NOTE: do we need this?
+            self.cumulative_sent_non_test += 1  # NOTE: do we need this?
 
         entry = FrameLogEntry(frame=frame)
         self.sent.append(entry)
@@ -177,15 +177,14 @@ class FrameStats:
         """Adds a received frame and prunes old entries."""
         self.cumulative_received += 1
         if not frame.is_test_packet:
-            self.cumulative_received_non_test += 1 # NOTE: do we need this?
+            self.cumulative_received_non_test += 1  # NOTE: do we need this?
 
         entry = FrameLogEntry(frame=frame)
         self.received.append(entry)
 
         # remove old entries
         while (
-            self.received
-            and (entry.ts - self.received[0].ts).total_seconds() > self.window_seconds
+            self.received and (entry.ts - self.received[0].ts).total_seconds() > self.window_seconds
         ):
             self.received.popleft()
 
@@ -197,7 +196,13 @@ class FrameStats:
         if include_test_packets:
             return len([e for e in self.sent if now - e.ts < timedelta(seconds=window_secs)])
         else:
-            return len([e for e in self.sent if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet])
+            return len(
+                [
+                    e
+                    for e in self.sent
+                    if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet
+                ]
+            )
 
     def received_count(self, window_secs: int = 0, include_test_packets: bool = True) -> int:
         if window_secs == 0:
@@ -211,7 +216,11 @@ class FrameStats:
         if include_test_packets:
             entries = [e for e in self.received if now - e.ts < timedelta(seconds=window_secs)]
         else:
-            entries = [e for e in self.received if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet]
+            entries = [
+                e
+                for e in self.received
+                if now - e.ts < timedelta(seconds=window_secs) and not e.frame.is_test_packet
+            ]
         return len(entries)
 
     def success_rate(self, window_secs: int = 0) -> float:

@@ -123,9 +123,11 @@ class Frame:
     @property
     def is_test_packet(self) -> bool:
         """Returns True if either the payload is a metrics response, request, or load test packet."""
-        return self.payload.startswith(DefaultPayloadType.METRICS_RESPONSE.as_bytes()) or \
-            self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes()) or \
-            self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
+        return (
+            self.payload.startswith(DefaultPayloadType.METRICS_RESPONSE.as_bytes())
+            or self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes())
+            or self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
+        )
 
     @property
     def is_load_test_packet(self) -> bool:

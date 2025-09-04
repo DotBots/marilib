@@ -55,7 +55,9 @@ class MetricsTester:
         """Sends a metrics request packet to a specific address."""
         # convert to microseconds and round to nearest integer
         time_us = int(time.time() * 1000 * 1000)
-        payload = MetricsRequestPayload(type_=DefaultPayloadType.METRICS_REQUEST, timestamp_us=time_us).to_bytes()
+        payload = MetricsRequestPayload(
+            type_=DefaultPayloadType.METRICS_REQUEST, timestamp_us=time_us
+        ).to_bytes()
         self.marilib.send_frame(address, payload)
 
     def handle_response(self, frame: Frame):
