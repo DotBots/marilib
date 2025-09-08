@@ -94,7 +94,9 @@ class MarilibEdge(MarilibBase):
             elif n := self.gateway.get_node(dst):
                 n.register_sent_frame(mari_frame)
 
-        self.serial_interface.send_data(b"\x01" + mari_frame.to_bytes())
+        self.serial_interface.send_data(
+            EdgeEvent.to_bytes(EdgeEvent.NODE_DATA) + mari_frame.to_bytes()
+        )
 
     def render_tui(self):
         if self.tui:
