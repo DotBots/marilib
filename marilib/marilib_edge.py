@@ -47,6 +47,7 @@ class MarilibEdge(MarilibBase):
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_serial_data_ts: datetime = field(default_factory=datetime.now)
+    last_received_mqtt_data_ts: datetime = field(default_factory=datetime.now)
     main_file: str | None = None
 
     def __post_init__(self):
@@ -113,6 +114,10 @@ class MarilibEdge(MarilibBase):
         return not isinstance(self.mqtt_interface, MQTTAdapterDummy)
 
     @property
+    def mqtt_connected(self) -> bool:
+        return self.uses_mqtt and self.mqtt_interface.is_ready()
+
+    @property
     def serial_connected(self) -> bool:
         return self.serial_interface is not None
 
@@ -133,6 +138,9 @@ class MarilibEdge(MarilibBase):
         """Just forwards the data to the serial interface."""
         if len(data) < 1:
             return
+
+        self.last_received_mqtt_data_ts = datetime.now()
+
         try:
             event_type = EdgeEvent(data[0])
             frame = Frame().from_bytes(data[1:])

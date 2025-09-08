@@ -56,7 +56,9 @@ class MarilibTUIEdge(MarilibTUI):
     def create_header_panel(self, mari: "MarilibEdge") -> Panel:
         """Create the header panel with gateway and network stats."""
         status = Text()
-        status.append("MarilibEdge is ", style="bold")
+
+        # UART Status Line
+        status.append("UART: ", style="bold cyan")
         status.append(
             "connected" if mari.serial_connected else "disconnected",
             style="bold green" if mari.serial_connected else "bold red",
@@ -64,27 +66,43 @@ class MarilibTUIEdge(MarilibTUI):
         if mari.serial_connected:
             status.append(
                 f" via {mari.serial_interface.port} at {mari.serial_interface.baudrate} baud "
-                f"since {mari.started_ts.strftime('%Y-%m-%d %H:%M:%S')}"
             )
-        status.append("  |  ")
         secs = int((datetime.now() - mari.last_received_serial_data_ts).total_seconds())
         status.append(
-            f"last received: {secs}s ago",
+            f"(last: {secs}s ago)",
             style="bold green" if secs <= 1 else "bold red",
         )
+
+        status.append("  |  ")
+
+        # MQTT Status Line
+        status.append("MQTT: ", style="bold cyan")
+        if mari.uses_mqtt:
+            status.append(
+                "connected" if mari.mqtt_connected else "disconnected",
+                style="bold green" if mari.mqtt_connected else "bold red",
+            )
+            if mari.mqtt_connected:
+                status.append(f" to {mari.mqtt_interface.host}:{mari.mqtt_interface.port} ")
+            mqtt_secs = int((datetime.now() - mari.last_received_mqtt_data_ts).total_seconds())
+            status.append(
+                f"(last: {mqtt_secs}s ago)",
+                style="bold green" if mqtt_secs <= 1 else "bold red",
+            )
+        else:
+            status.append("disabled", style="bold yellow")
 
         status.append("\n\nGateway:  ", style="bold cyan")
         status.append(f"0x{mari.gateway.info.address:016X}  |  ")
         status.append("Network ID: ", style="bold cyan")
         status.append(f"0x{mari.gateway.info.network_id:04X}  |  ")
-        status.append("ASN:      ", style="bold cyan")
-        status.append(f"{mari.gateway.info.asn:020d}  |  ")
-        # status.append("Timer:    ", style="bold cyan")
-        # status.append(f"{mari.gateway.info.timer:010d}")
+        status.append("ASN: ", style="bold cyan")
+        status.append(f"{mari.gateway.info.asn:020d}")
 
         status.append("\n\n")
         status.append("Schedule: ", style="bold cyan")
-        status.append(f"#{mari.gateway.info.schedule_id} ({mari.gateway.info.schedule_name})  |  ")
+        status.append(f"#{mari.gateway.info.schedule_id} {mari.gateway.info.schedule_name} |  ")
+        status.append(f"{len(mari.gateway.nodes)} / {mari.gateway.info.max_nodes} nodes  |  ")
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
 
         # --- Latency and PDR Display ---
@@ -103,7 +121,7 @@ class MarilibTUIEdge(MarilibTUI):
         # Display Latency
         if has_latency_info:
             lat = mari.gateway.metrics_stats
-            status.append("Latency:    ", style="bold yellow")
+            status.append("Latency:  ", style="bold yellow")
             status.append(
                 f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
             )
@@ -123,7 +141,7 @@ class MarilibTUIEdge(MarilibTUI):
                 avg_pdr_up = sum(uplink_values) / len(uplink_values)
                 pdr_line_parts.append(f"Up: {avg_pdr_up:.1%}")
 
-            status.append("PDR avg:    ", style="bold yellow")
+            status.append("PDR avg:  ", style="bold yellow")
             status.append(" | ".join(pdr_line_parts))
 
         status.append("\n\nStats:    ", style="bold yellow")
@@ -135,13 +153,16 @@ class MarilibTUIEdge(MarilibTUI):
             status.append("  |  ")
 
         stats = mari.gateway.stats
-        status.append(f"Nodes: {len(mari.gateway.nodes)}  |  ")
         status.append(f"Frames TX: {stats.sent_count(include_test_packets=True)}  |  ")
         status.append(f"Frames RX: {stats.received_count(include_test_packets=True)} |  ")
         status.append(f"TX/s: {stats.sent_count(1, include_test_packets=True)}  |  ")
         status.append(f"RX/s: {stats.received_count(1, include_test_packets=True)}")
 
-        return Panel(status, title="[bold]MarilibEdge Status", border_style="blue")
+        return Panel(
+            status,
+            title=f"[bold]MariEdge running since {mari.started_ts.strftime('%Y-%m-%d %H:%M:%S')}",
+            border_style="blue",
+        )
 
     def create_nodes_table(self, nodes: list[MariNode], title="") -> Table:
         table = Table(
