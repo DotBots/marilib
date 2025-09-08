@@ -132,17 +132,36 @@ class MarilibTUIEdge(MarilibTUI):
 
         # Display PDR
         if has_pdr_info:
-            pdr_line_parts = []
+            status.append("PDR avg:  ", style="bold yellow")
+            pdr_parts = []
+
             if downlink_values:
                 avg_pdr_down = sum(downlink_values) / len(downlink_values)
-                pdr_line_parts.append(f"Down: {avg_pdr_down:.1%}")
+                if avg_pdr_down > 0.9:
+                    pdr_color = "white"
+                elif avg_pdr_down > 0.8:
+                    pdr_color = "yellow"
+                else:
+                    pdr_color = "red"
+                pdr_parts.append(("Down: ", "white"))
+                pdr_parts.append((f"{avg_pdr_down:.1%}", pdr_color))
 
             if uplink_values:
+                if pdr_parts:  # Add separator if we have downlink values too
+                    pdr_parts.append((" | ", "white"))
                 avg_pdr_up = sum(uplink_values) / len(uplink_values)
-                pdr_line_parts.append(f"Up: {avg_pdr_up:.1%}")
+                if avg_pdr_up > 0.9:
+                    pdr_color = "white"
+                elif avg_pdr_up > 0.8:
+                    pdr_color = "yellow"
+                else:
+                    pdr_color = "red"
+                pdr_parts.append(("Up: ", "white"))
+                pdr_parts.append((f"{avg_pdr_up:.1%}", pdr_color))
 
-            status.append("PDR avg:  ", style="bold yellow")
-            status.append(" | ".join(pdr_line_parts))
+            # Append all parts with their respective colors
+            for text, color in pdr_parts:
+                status.append(text, style=color)
 
         status.append("\n\nStats:    ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
@@ -186,16 +205,36 @@ class MarilibTUIEdge(MarilibTUI):
             lat_str = (
                 f"{node.metrics_stats.avg_ms:.1f}" if node.metrics_stats.last_ms > 0 else "..."
             )
-            pdr_down_str = (
-                f"{node.pdr_downlink:>4.0%}"
-                if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None
-                else "..."
-            )
-            pdr_up_str = (
-                f"{node.pdr_uplink:>4.0%}"
-                if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None
-                else "..."
-            )
+            # PDR Downlink with color coding
+            if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None:
+                if node.pdr_downlink > 0.9:
+                    pdr_down_str = f"[white]{node.pdr_downlink:>4.0%}[/white]"
+                elif node.pdr_downlink > 0.8:
+                    pdr_down_str = f"[yellow]{node.pdr_downlink:>4.0%}[/yellow]"
+                else:
+                    pdr_down_str = f"[red]{node.pdr_downlink:>4.0%}[/red]"
+            else:
+                pdr_down_str = "..."
+
+            # PDR Uplink with color coding
+            if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None:
+                if node.pdr_uplink > 0.9:
+                    pdr_up_str = f"[white]{node.pdr_uplink:>4.0%}[/white]"
+                elif node.pdr_uplink > 0.8:
+                    pdr_up_str = f"[yellow]{node.pdr_uplink:>4.0%}[/yellow]"
+                else:
+                    pdr_up_str = f"[red]{node.pdr_uplink:>4.0%}[/red]"
+            else:
+                pdr_up_str = "..."
+
+            # Success Rate with color coding
+            sr_value = node.stats.success_rate(10)
+            if sr_value > 0.9:
+                sr_str = f"[white]{sr_value:>4.0%}[/white]"
+            elif sr_value > 0.8:
+                sr_str = f"[yellow]{sr_value:>4.0%}[/yellow]"
+            else:
+                sr_str = f"[red]{sr_value:>4.0%}[/red]"
 
             table.add_row(
                 f"0x{node.address:016X}",
@@ -203,7 +242,7 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.sent_count(1, include_test_packets=True)),
                 str(node.stats.received_count(include_test_packets=True)),
                 str(node.stats.received_count(1, include_test_packets=True)),
-                f"{node.stats.success_rate(10):>4.0%}",
+                sr_str,
                 pdr_down_str,
                 pdr_up_str,
                 f"{node.stats.received_rssi_dbm(5)}",
