@@ -324,7 +324,7 @@ class GatewayInfo(Packet):
             )
         elif cell == "U":
             return rich.text.Text(
-                " ", style=f'bold white on {"yellow" if is_used else "light_yellow3"}'
+                "U", style=f'bold white on {"yellow" if is_used else "light_yellow3"}'
             )
 
     def repr_schedule_cells_with_colors(self):
@@ -341,6 +341,10 @@ class GatewayInfo(Packet):
     def schedule_name(self) -> str:
         schedule_data = SCHEDULES.get(self.schedule_id)
         return schedule_data["name"] if schedule_data else "unknown"
+
+    @property
+    def max_nodes(self) -> int:
+        return SCHEDULES.get(self.schedule_id, EMPTY_SCHEDULE_DATA)["max_nodes"]
 
     @property
     def network_id_str(self) -> str:
