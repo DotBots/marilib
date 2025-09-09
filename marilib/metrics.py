@@ -5,7 +5,7 @@ import math
 
 from rich import print
 from marilib.mari_protocol import Frame
-from marilib.mari_protocol import DefaultPayloadType, MetricsRequestPayload, MetricsResponsePayload
+from marilib.mari_protocol import DefaultPayloadType, MetricsProbePayload, MetricsResponsePayload
 
 if TYPE_CHECKING:
     from marilib.marilib_edge import MarilibEdge
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class MetricsTester:
     """A thread-based class to periodically test metrics to all nodes."""
 
-    def __init__(self, marilib: "MarilibEdge", interval: float = 0.3):
+    def __init__(self, marilib: "MarilibEdge", interval: float = 1):
         self.marilib = marilib
         self.interval = interval
         self._stop_event = threading.Event()
@@ -51,32 +51,57 @@ class MetricsTester:
                 sleep_duration = self.interval / len(nodes)
                 self._stop_event.wait(sleep_duration)
 
+    def timestamp_us(self) -> int:
+        """Returns the current time in microseconds."""
+        return int(time.time() * 1000 * 1000)
+
     def send_metrics_request(self, address: int):
         """Sends a metrics request packet to a specific address."""
         # convert to microseconds and round to nearest integer
-        time_us = int(time.time() * 1000 * 1000)
-        payload = MetricsRequestPayload(
-            type_=DefaultPayloadType.METRICS_REQUEST, timestamp_us=time_us
-        ).to_bytes()
+        time_us = self.timestamp_us()
+        payload = MetricsProbePayload(
+            type_=DefaultPayloadType.METRICS_PROBE, edge_tx_ts_us=time_us
+        )
+        # print(f">>> sending metrics probe to {address:016x}: {payload}")
+        payload = payload.to_bytes()
+        # print(f"    size is {len(payload)} bytes: {payload.hex()}\n")
         self.marilib.send_frame(address, payload)
 
-    def handle_response(self, frame: Frame):
+    def handle_response(self, frame: Frame, marilib_type: str):
         """
         Processes a metrics response frame.
         This should be called when a LATENCY_DATA event is received.
         """
         try:
-            payload = MetricsResponsePayload().from_bytes(frame.payload)
-            if payload.type_ != DefaultPayloadType.METRICS_RESPONSE:
-                print(f"[red]Expected METRICS_RESPONSE, got {payload.type_}[/]")
-                return
+            payload = MetricsProbePayload().from_bytes(frame.payload)
+            # if payload.type_ != DefaultPayloadType.METRICS_RESPONSE:
+            #     print(f"[red]Expected METRICS_RESPONSE, got {payload.type_}[/]")
+            #     return
 
         except Exception as e:
             print(f"[red]Error parsing metrics response: {e}[/]")
             return
 
-        self.handle_latency_response(frame.header.source, payload.timestamp_us)
-        self.handle_pdr_metric(frame.header.source, payload.rx_count, payload.tx_count)
+        if marilib_type == "edge":
+            payload.edge_rx_ts_us = self.timestamp_us()
+        elif marilib_type == "cloud":
+            payload.cloud_rx_ts_us = self.timestamp_us()
+
+        # print(f"<<< received metrics probe from {frame.header.source:016x}: {payload}")
+        # print(f"    size is {len(frame.payload)} bytes: {frame.payload.hex()}\n")
+
+        # print(f"    latency_roundtrip_node_edge_ms: {payload.latency_roundtrip_node_edge_ms()}")
+        # print(f"    pdr_uplink_node_gw: {payload.pdr_uplink_node_gw()}")
+        # print(f"    pdr_downlink_node_gw: {payload.pdr_downlink_node_gw()}")
+        # print(f"    rssi_at_node_dbm: {payload.rssi_at_node_dbm()}")
+        # print(f"    rssi_at_gw_dbm: {payload.rssi_at_gw_dbm()}")
+
+        node = self.marilib.gateway.get_node(frame.header.source)
+        if node:
+            node.set_probe_stats(payload)
+
+        # self.handle_latency_response(frame.header.source, payload.timestamp_us)
+        # self.handle_pdr_metric(frame.header.source, payload.rx_count, payload.tx_count)
 
     def handle_latency_response(self, source: int, original_ts: float):
         original_ts = original_ts / 1000 / 1000

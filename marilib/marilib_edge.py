@@ -203,7 +203,7 @@ class MarilibEdge(MarilibBase):
 
                     # Handle latency packets
                     if frame.is_test_packet and self.metrics_tester:
-                        self.metrics_tester.handle_response(frame)
+                        self.metrics_tester.handle_response(frame, "edge")
 
                     self.gateway.register_received_frame(frame)
 

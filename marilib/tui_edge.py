@@ -199,31 +199,32 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("SR(total)", justify="right")
         table.add_column("PDR Down", justify="right")
         table.add_column("PDR Up", justify="right")
-        table.add_column("RSSI", justify="right")
+        table.add_column("RSSI Node", justify="right")
+        table.add_column("RSSI GW", justify="right")
         table.add_column("Latency (ms)", justify="right")
         for node in nodes:
             lat_str = (
-                f"{node.metrics_stats.avg_ms:.1f}" if node.metrics_stats.last_ms > 0 else "..."
+                f"{node.probe_stats.latency_roundtrip_node_edge_ms():.1f}" if node.probe_stats.latency_roundtrip_node_edge_ms() > 0 else "..."
             )
             # PDR Downlink with color coding
-            if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None:
-                if node.pdr_downlink > 0.9:
-                    pdr_down_str = f"[white]{node.pdr_downlink:>4.0%}[/white]"
-                elif node.pdr_downlink > 0.8:
-                    pdr_down_str = f"[yellow]{node.pdr_downlink:>4.0%}[/yellow]"
+            if node.stats_pdr_downlink() > 0:
+                if node.stats_pdr_downlink() > 0.9:
+                    pdr_down_str = f"[white]{node.stats_pdr_downlink():>4.0%}[/white]"
+                elif node.stats_pdr_downlink() > 0.8:
+                    pdr_down_str = f"[yellow]{node.stats_pdr_downlink():>4.0%}[/yellow]"
                 else:
-                    pdr_down_str = f"[red]{node.pdr_downlink:>4.0%}[/red]"
+                    pdr_down_str = f"[red]{node.stats_pdr_downlink():>4.0%}[/red]"
             else:
                 pdr_down_str = "..."
 
             # PDR Uplink with color coding
-            if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None:
-                if node.pdr_uplink > 0.9:
-                    pdr_up_str = f"[white]{node.pdr_uplink:>4.0%}[/white]"
-                elif node.pdr_uplink > 0.8:
-                    pdr_up_str = f"[yellow]{node.pdr_uplink:>4.0%}[/yellow]"
+            if node.stats_pdr_uplink() > 0:
+                if node.stats_pdr_uplink() > 0.9:
+                    pdr_up_str = f"[white]{node.stats_pdr_uplink():>4.0%}[/white]"
+                elif node.stats_pdr_uplink() > 0.8:
+                    pdr_up_str = f"[yellow]{node.stats_pdr_uplink():>4.0%}[/yellow]"
                 else:
-                    pdr_up_str = f"[red]{node.pdr_uplink:>4.0%}[/red]"
+                    pdr_up_str = f"[red]{node.stats_pdr_uplink():>4.0%}[/red]"
             else:
                 pdr_up_str = "..."
 
@@ -245,7 +246,8 @@ class MarilibTUIEdge(MarilibTUI):
                 sr_str,
                 pdr_down_str,
                 pdr_up_str,
-                f"{node.stats.received_rssi_dbm(5)}",
+                f"{node.probe_stats.rssi_at_node_dbm()}",
+                f"{node.probe_stats.rssi_at_gw_dbm()}",
                 lat_str,
             )
         return table

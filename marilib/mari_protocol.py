@@ -14,6 +14,7 @@ class DefaultPayloadType(IntEnum):
     METRICS_REQUEST = 128
     METRICS_RESPONSE = 129
     METRICS_LOAD = 130
+    METRICS_PROBE = 140
 
     def as_bytes(self) -> bytes:
         return bytes([self.value])
@@ -27,6 +28,113 @@ class DefaultPayload(Packet):
         ]
     )
     type_: DefaultPayloadType = DefaultPayloadType.APPLICATION_DATA
+
+
+@dataclass
+class MetricsProbePayload(Packet):
+    metadata: list[PacketFieldMetadata] = dataclasses.field(
+        default_factory=lambda: [
+            PacketFieldMetadata(name="type", length=1),
+            PacketFieldMetadata(name="cloud_tx_ts_us", length=8),
+            PacketFieldMetadata(name="cloud_rx_ts_us", length=8),
+            PacketFieldMetadata(name="cloud_tx_count", length=4),
+            PacketFieldMetadata(name="cloud_rx_count", length=4),
+            PacketFieldMetadata(name="edge_tx_ts_us", length=8),
+            PacketFieldMetadata(name="edge_rx_ts_us", length=8),
+            PacketFieldMetadata(name="edge_tx_count", length=4),
+            PacketFieldMetadata(name="edge_rx_count", length=4),
+            PacketFieldMetadata(name="gw_tx_count", length=4),
+            PacketFieldMetadata(name="gw_rx_count", length=4),
+            PacketFieldMetadata(name="gw_rx_asn", length=8),
+            PacketFieldMetadata(name="gw_tx_enqueued_asn", length=8),
+            PacketFieldMetadata(name="gw_tx_dequeued_asn", length=8),
+            PacketFieldMetadata(name="node_rx_count", length=4),
+            PacketFieldMetadata(name="node_tx_count", length=4),
+            PacketFieldMetadata(name="node_rx_asn", length=8),
+            PacketFieldMetadata(name="node_tx_enqueued_asn", length=8),
+            PacketFieldMetadata(name="node_tx_dequeued_asn", length=8),
+            PacketFieldMetadata(name="rssi_at_node", length=1),
+            PacketFieldMetadata(name="rssi_at_gw", length=1),
+        ]
+    )
+    type_: DefaultPayloadType = DefaultPayloadType.METRICS_PROBE
+    cloud_tx_ts_us: int = 0
+    cloud_rx_ts_us: int = 0
+    cloud_tx_count: int = 0
+    cloud_rx_count: int = 0
+    edge_tx_ts_us: int = 0
+    edge_rx_ts_us: int = 0
+    edge_tx_count: int = 0
+    edge_rx_count: int = 0
+    gw_tx_count: int = 0
+    gw_rx_count: int = 0
+    gw_rx_asn: int = 0
+    gw_tx_enqueued_asn: int = 0
+    gw_tx_dequeued_asn: int = 0
+    node_rx_count: int = 0
+    node_tx_count: int = 0
+    node_rx_asn: int = 0
+    node_tx_enqueued_asn: int = 0
+    node_tx_dequeued_asn: int = 0
+    rssi_at_node: int = 0
+    rssi_at_gw: int = 0
+
+    @property
+    def packet_length(self) -> int:
+        return sum(field.length for field in self.metadata)
+    
+    @property
+    def asn(self) -> int:
+        """ASN at reception back from the network"""
+        return self.gw_rx_asn
+
+    def latency_roundtrip_node_edge_ms(self) -> float:
+        return (self.edge_rx_ts_us - self.edge_tx_ts_us) / 1000.0
+
+    def pdr_uplink_node_gw(self, probe_stats_start_epoch = None) -> float:
+        if probe_stats_start_epoch is None:
+            # if no epoch is provided, use the current values
+            gw_rx_count = self.gw_rx_count
+            node_tx_count = self.node_tx_count
+        else:
+            # if epoch is provided, subtract the epoch values from the current values
+            if probe_stats_start_epoch.asn == 0:
+                return 0
+            gw_rx_count = self.gw_rx_count - probe_stats_start_epoch.gw_rx_count
+            node_tx_count = self.node_tx_count - probe_stats_start_epoch.node_tx_count
+        if node_tx_count <= 0:
+            return 0
+        return gw_rx_count / node_tx_count
+
+    def pdr_downlink_node_gw(self, probe_stats_start_epoch = None) -> float:
+        if probe_stats_start_epoch is None:
+            # if no epoch is provided, use the current values
+            gw_tx_count = self.gw_tx_count
+            node_rx_count = self.node_rx_count
+        else:
+            # if epoch is provided, subtract the epoch values from the current values
+            if probe_stats_start_epoch.asn == 0:
+                return 0
+            gw_tx_count = self.gw_tx_count - probe_stats_start_epoch.gw_tx_count
+            node_rx_count = self.node_rx_count - probe_stats_start_epoch.node_rx_count
+        if gw_tx_count <= 0:
+            return 0
+        return node_rx_count / gw_tx_count
+
+    def rssi_at_node_dbm(self) -> int:
+        if self.rssi_at_node > 127:
+            return self.rssi_at_node - 255
+        return self.rssi_at_node
+    
+    def rssi_at_gw_dbm(self) -> int:
+        if self.rssi_at_gw > 127:
+            return self.rssi_at_gw - 255
+        return self.rssi_at_gw
+
+    def __repr__(self): 
+        rep = dataclasses.asdict(self)
+        rep.pop('metadata', None)
+        return f"{rep}"
 
 
 @dataclass
@@ -127,6 +235,7 @@ class Frame:
             self.payload.startswith(DefaultPayloadType.METRICS_RESPONSE.as_bytes())
             or self.payload.startswith(DefaultPayloadType.METRICS_REQUEST.as_bytes())
             or self.payload.startswith(DefaultPayloadType.METRICS_LOAD.as_bytes())
+            or self.payload.startswith(DefaultPayloadType.METRICS_PROBE.as_bytes())
         )
 
     @property

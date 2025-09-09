@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 import rich
 
-from marilib.mari_protocol import Frame
+from marilib.mari_protocol import Frame, MetricsProbePayload
 from marilib.protocol import Packet, PacketFieldMetadata
 
 # schedules taken from: https://github.com/DotBots/mari-evaluation/blob/main/simulations/radio-schedule.ipynb
@@ -51,6 +51,10 @@ EMPTY_SCHEDULE_DATA = {
 
 MARI_TIMEOUT_NODE_IS_ALIVE = 3  # seconds
 MARI_TIMEOUT_GATEWAY_IS_ALIVE = 3  # seconds
+
+# MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 20 # about 10 seconds
+MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 60 # about 30 seconds
+# MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 2 # about 1 second
 
 
 @dataclass
@@ -250,6 +254,8 @@ class MariNode:
     address: int
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
+    probe_stats: MetricsProbePayload = field(default_factory=MetricsProbePayload)
+    probe_stats_start_epoch: MetricsProbePayload = field(default_factory=MetricsProbePayload)
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
@@ -260,6 +266,22 @@ class MariNode:
     @property
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_NODE_IS_ALIVE)
+    
+    def set_probe_stats(self, probe_stats: MetricsProbePayload):
+        # save the current probe stats
+        self.probe_stats = probe_stats
+        if self.probe_stats_start_epoch.asn == 0:
+            # if the previous probe stats are not set, set them
+            self.probe_stats_start_epoch = probe_stats
+        elif probe_stats.asn - self.probe_stats_start_epoch.asn > MARI_PROBE_STATS_EPOCH_DURATION_ASN:
+            # if the epoch duration is reached, set the previous probe stats
+            self.probe_stats_start_epoch = probe_stats
+
+    def stats_pdr_downlink(self) -> float:
+        return self.probe_stats.pdr_downlink_node_gw(self.probe_stats_start_epoch)
+    
+    def stats_pdr_uplink(self) -> float:
+        return self.probe_stats.pdr_uplink_node_gw(self.probe_stats_start_epoch)
 
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
