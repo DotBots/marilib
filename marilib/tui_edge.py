@@ -203,7 +203,9 @@ class MarilibTUIEdge(MarilibTUI):
 
         for node in nodes:
             lat_str = (
-                f"{node.stats_latency_roundtrip_node_edge_ms():.1f}" if node.stats_latency_roundtrip_node_edge_ms() > 0 else "..."
+                f"{node.stats_latency_roundtrip_node_edge_ms():.1f}"
+                if node.stats_latency_roundtrip_node_edge_ms() > 0
+                else "..."
             )
             # PDR Downlink with color coding
             if node.stats_pdr_downlink() > 0:
@@ -237,19 +239,29 @@ class MarilibTUIEdge(MarilibTUI):
                     pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_gw_edge():>4.0%}[/red]"
             else:
                 pdr_up_gw_edge_str = "..."
-            
+
             if node.stats_pdr_downlink_gw_edge() > 0:
                 if node.stats_pdr_downlink_gw_edge() > 0.9:
-                    pdr_down_gw_edge_str = f"[white]{node.stats_pdr_downlink_gw_edge():>4.0%}[/white]"
+                    pdr_down_gw_edge_str = (
+                        f"[white]{node.stats_pdr_downlink_gw_edge():>4.0%}[/white]"
+                    )
                 elif node.stats_pdr_downlink_gw_edge() > 0.8:
-                    pdr_down_gw_edge_str = f"[yellow]{node.stats_pdr_downlink_gw_edge():>4.0%}[/yellow]"
+                    pdr_down_gw_edge_str = (
+                        f"[yellow]{node.stats_pdr_downlink_gw_edge():>4.0%}[/yellow]"
+                    )
                 else:
                     pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_gw_edge():>4.0%}[/red]"
             else:
                 pdr_down_gw_edge_str = "..."
 
-            rssi_node_str = f"{node.stats_rssi_node_dbm():.0f}" if node.stats_rssi_node_dbm() is not None else "..."
-            rssi_gw_str = f"{node.stats_rssi_gw_dbm():.0f}" if node.stats_rssi_gw_dbm() is not None else "..."
+            rssi_node_str = (
+                f"{node.stats_rssi_node_dbm():.0f}"
+                if node.stats_rssi_node_dbm() is not None
+                else "..."
+            )
+            rssi_gw_str = (
+                f"{node.stats_rssi_gw_dbm():.0f}" if node.stats_rssi_gw_dbm() is not None else "..."
+            )
 
             table.add_row(
                 f"0x{node.address:016X}",

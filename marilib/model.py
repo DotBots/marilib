@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import IntEnum
 import rich
-from typing import List
 
 from marilib.mari_protocol import Frame, MetricsProbePayload
 from marilib.protocol import Packet, PacketFieldMetadata
@@ -54,7 +53,7 @@ MARI_TIMEOUT_NODE_IS_ALIVE = 3  # seconds
 MARI_TIMEOUT_GATEWAY_IS_ALIVE = 3  # seconds
 
 # MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 20 # about 10 seconds
-MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 60 # about 30 seconds
+MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 60  # about 30 seconds
 # MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 2 # about 1 second
 
 
@@ -255,7 +254,9 @@ class MariNode:
     address: int
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
-    probe_stats: deque[MetricsProbePayload] = field(default_factory=lambda: deque(maxlen=30)) # NOTE: related to frequency of probe stats
+    probe_stats: deque[MetricsProbePayload] = field(
+        default_factory=lambda: deque(maxlen=30)
+    )  # NOTE: related to frequency of probe stats
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
@@ -297,7 +298,7 @@ class MariNode:
         if not self.probe_stats_latest:
             return 0
         return self.probe_stats_latest.pdr_downlink_node_gw(self.probe_stats_start_epoch)
-    
+
     def stats_pdr_uplink(self) -> float:
         if not self.probe_stats_latest:
             return 0
@@ -307,7 +308,7 @@ class MariNode:
         if not self.probe_stats_latest:
             return 0
         return self.probe_stats_latest.pdr_uplink_gw_edge(self.probe_stats_start_epoch)
-    
+
     def stats_pdr_downlink_gw_edge(self) -> float:
         if not self.probe_stats_latest:
             return 0
@@ -317,7 +318,7 @@ class MariNode:
         if not self.probe_stats_latest:
             return None
         return self.probe_stats_latest.rssi_at_node_dbm()
-    
+
     def stats_rssi_gw_dbm(self) -> float:
         if not self.probe_stats_latest:
             return None
@@ -328,7 +329,9 @@ class MariNode:
         # compute average latency between node and edge, using all probe stats
         if not self.probe_stats:
             return 0
-        return sum(p.latency_roundtrip_node_edge_ms() for p in self.probe_stats) / len(self.probe_stats)
+        return sum(p.latency_roundtrip_node_edge_ms() for p in self.probe_stats) / len(
+            self.probe_stats
+        )
 
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)

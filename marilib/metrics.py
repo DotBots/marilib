@@ -1,7 +1,6 @@
 import threading
 import time
 from typing import TYPE_CHECKING
-import math
 
 from rich import print
 from marilib.mari_protocol import Frame, DefaultPayloadType
@@ -109,4 +108,3 @@ class MetricsTester:
         # print(f"    pdr_downlink_gw_edge: {payload.pdr_downlink_gw_edge(node.probe_stats_start_epoch)}")
         # print(f"    rssi_at_node_dbm: {payload.rssi_at_node_dbm()}")
         # print(f"    rssi_at_gw_dbm: {payload.rssi_at_gw_dbm()}")
-

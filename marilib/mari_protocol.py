@@ -82,7 +82,7 @@ class MetricsProbePayload(Packet):
     @property
     def packet_length(self) -> int:
         return sum(field.length for field in self.metadata)
-    
+
     @property
     def asn(self) -> int:
         """ASN at reception back from the network"""
@@ -91,7 +91,7 @@ class MetricsProbePayload(Packet):
     def latency_roundtrip_node_edge_ms(self) -> float:
         return (self.edge_rx_ts_us - self.edge_tx_ts_us) / 1000.0
 
-    def pdr_uplink_node_gw(self, probe_stats_start_epoch = None) -> float:
+    def pdr_uplink_node_gw(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, use the current values
             gw_rx_count = self.gw_rx_count
@@ -106,7 +106,7 @@ class MetricsProbePayload(Packet):
             return 0
         return gw_rx_count / node_tx_count
 
-    def pdr_downlink_node_gw(self, probe_stats_start_epoch = None) -> float:
+    def pdr_downlink_node_gw(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, use the current values
             gw_tx_count = self.gw_tx_count
@@ -121,7 +121,7 @@ class MetricsProbePayload(Packet):
             return 0
         return node_rx_count / gw_tx_count
 
-    def pdr_uplink_gw_edge(self, probe_stats_start_epoch = None) -> float:
+    def pdr_uplink_gw_edge(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, just wait a bit
             return -1
@@ -135,7 +135,7 @@ class MetricsProbePayload(Packet):
             return 0
         return gw_tx_count / edge_rx_count
 
-    def pdr_downlink_gw_edge(self, probe_stats_start_epoch = None) -> float:
+    def pdr_downlink_gw_edge(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, just wait a bit
             return -1
@@ -153,15 +153,15 @@ class MetricsProbePayload(Packet):
         if self.rssi_at_node > 127:
             return self.rssi_at_node - 255
         return self.rssi_at_node
-    
+
     def rssi_at_gw_dbm(self) -> int:
         if self.rssi_at_gw > 127:
             return self.rssi_at_gw - 255
         return self.rssi_at_gw
 
-    def __repr__(self): 
+    def __repr__(self):
         rep = dataclasses.asdict(self)
-        rep.pop('metadata', None)
+        rep.pop("metadata", None)
         return f"{rep}"
 
 
