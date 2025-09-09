@@ -262,6 +262,8 @@ class MariNode:
     last_reported_tx_count: int = 0
     pdr_downlink: float = 0.0
     pdr_uplink: float = 0.0
+    probe_tx_count: int = 0
+    probe_rx_count: int = 0
 
     @property
     def is_alive(self) -> bool:
@@ -283,6 +285,14 @@ class MariNode:
             return None
         return self.probe_stats[0]
 
+    def probe_increment_tx_count(self) -> int:
+        self.probe_tx_count += 1
+        return self.probe_tx_count
+
+    def probe_increment_rx_count(self) -> int:
+        self.probe_rx_count += 1
+        return self.probe_rx_count
+
     def stats_pdr_downlink(self) -> float:
         if not self.probe_stats_latest:
             return 0
@@ -292,7 +302,17 @@ class MariNode:
         if not self.probe_stats_latest:
             return 0
         return self.probe_stats_latest.pdr_uplink_node_gw(self.probe_stats_start_epoch)
+
+    def stats_pdr_uplink_gw_edge(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_uplink_gw_edge(self.probe_stats_start_epoch)
     
+    def stats_pdr_downlink_gw_edge(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_downlink_gw_edge(self.probe_stats_start_epoch)
+
     def stats_rssi_node_dbm(self) -> float:
         if not self.probe_stats_latest:
             return None

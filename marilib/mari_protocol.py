@@ -121,6 +121,34 @@ class MetricsProbePayload(Packet):
             return 0
         return node_rx_count / gw_tx_count
 
+    def pdr_uplink_gw_edge(self, probe_stats_start_epoch = None) -> float:
+        if probe_stats_start_epoch is None:
+            # if no epoch is provided, just wait a bit
+            return -1
+        else:
+            # if epoch is provided, subtract the epoch values from the current values
+            if probe_stats_start_epoch.asn == 0:
+                return 0
+            gw_tx_count = self.gw_tx_count - probe_stats_start_epoch.gw_tx_count
+            edge_rx_count = self.edge_rx_count - probe_stats_start_epoch.edge_rx_count
+        if edge_rx_count <= 0:
+            return 0
+        return gw_tx_count / edge_rx_count
+
+    def pdr_downlink_gw_edge(self, probe_stats_start_epoch = None) -> float:
+        if probe_stats_start_epoch is None:
+            # if no epoch is provided, just wait a bit
+            return -1
+        else:
+            # if epoch is provided, subtract the epoch values from the current values
+            if probe_stats_start_epoch.asn == 0:
+                return 0
+            gw_rx_count = self.gw_rx_count - probe_stats_start_epoch.gw_rx_count
+            edge_tx_count = self.edge_tx_count - probe_stats_start_epoch.edge_tx_count
+        if edge_tx_count <= 0:
+            return 0
+        return gw_rx_count / edge_tx_count
+
     def rssi_at_node_dbm(self) -> int:
         if self.rssi_at_node > 127:
             return self.rssi_at_node - 255

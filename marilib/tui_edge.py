@@ -196,9 +196,11 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("/s", justify="right")
         table.add_column("RX", justify="right")
         table.add_column("/s", justify="right")
-        table.add_column("Downlink PDR / RSSI", justify="center")
-        table.add_column("Uplink PDR / RSSI", justify="center")
+        table.add_column("Radio PDR ↓ | RSSI", justify="center")
+        table.add_column("Radio PDR ↑ | RSSI", justify="center")
+        table.add_column("UART PDR ↑ | ↓", justify="center")
         table.add_column("Latency (ms)", justify="right")
+
         for node in nodes:
             lat_str = (
                 f"{node.stats_latency_roundtrip_node_edge_ms():.1f}" if node.stats_latency_roundtrip_node_edge_ms() > 0 else "..."
@@ -225,6 +227,27 @@ class MarilibTUIEdge(MarilibTUI):
             else:
                 pdr_up_str = "..."
 
+            # PDR UART Up / Down with color coding
+            if node.stats_pdr_uplink_gw_edge() > 0:
+                if node.stats_pdr_uplink_gw_edge() > 0.9:
+                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_gw_edge():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_gw_edge() > 0.8:
+                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_gw_edge():>4.0%}[/yellow]"
+                else:
+                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_gw_edge():>4.0%}[/red]"
+            else:
+                pdr_up_gw_edge_str = "..."
+            
+            if node.stats_pdr_downlink_gw_edge() > 0:
+                if node.stats_pdr_downlink_gw_edge() > 0.9:
+                    pdr_down_gw_edge_str = f"[white]{node.stats_pdr_downlink_gw_edge():>4.0%}[/white]"
+                elif node.stats_pdr_downlink_gw_edge() > 0.8:
+                    pdr_down_gw_edge_str = f"[yellow]{node.stats_pdr_downlink_gw_edge():>4.0%}[/yellow]"
+                else:
+                    pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_gw_edge():>4.0%}[/red]"
+            else:
+                pdr_down_gw_edge_str = "..."
+
             rssi_node_str = f"{node.stats_rssi_node_dbm():.0f}" if node.stats_rssi_node_dbm() is not None else "..."
             rssi_gw_str = f"{node.stats_rssi_gw_dbm():.0f}" if node.stats_rssi_gw_dbm() is not None else "..."
 
@@ -234,8 +257,9 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.sent_count(1, include_test_packets=True)),
                 str(node.stats.received_count(include_test_packets=True)),
                 str(node.stats.received_count(1, include_test_packets=True)),
-                f"{pdr_down_str} / {rssi_node_str} dBm",
-                f"{pdr_up_str} / {rssi_gw_str} dBm",
+                f"{pdr_down_str} | {rssi_node_str} dBm",
+                f"{pdr_up_str} | {rssi_gw_str} dBm",
+                f"{pdr_up_gw_edge_str} | {pdr_down_gw_edge_str}",
                 lat_str,
             )
         return table
