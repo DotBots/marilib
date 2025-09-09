@@ -53,9 +53,10 @@ class SerialAdapter(CommunicationAdapterBase):
         print("[yellow]Disconnect from gateway...[/]")
 
     def send_data(self, data):
-        self.serial.serial.flush()
-        encoded = hdlc_encode(data)
-        self.serial.write(encoded)
+        with self.serial.lock:  # Use the existing lock for thread safety
+            self.serial.serial.flush()
+            encoded = hdlc_encode(data)
+            self.serial.write(encoded)
 
 
 class MQTTAdapter(CommunicationAdapterBase):

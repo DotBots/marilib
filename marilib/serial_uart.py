@@ -76,9 +76,10 @@ class SerialInterface(threading.Thread):
         """Write bytes on serial."""
         # Send 64 bytes at a time
         pos = 0
-        while (pos % SERIAL_PAYLOAD_CHUNK_SIZE) == 0 and pos < len(bytes_):
-            self.serial.write(bytes_[pos : pos + SERIAL_PAYLOAD_CHUNK_SIZE])
+        while pos < len(bytes_):
+            chunk_end = min(pos + SERIAL_PAYLOAD_CHUNK_SIZE, len(bytes_))
+            self.serial.write(bytes_[pos:chunk_end])
             self.serial.flush()
-            pos += SERIAL_PAYLOAD_CHUNK_SIZE
-            time.sleep(SERIAL_PAYLOAD_CHUNK_DELAY)
-        # self.serial.flush()
+            pos = chunk_end
+            if pos < len(bytes_):  # Only sleep if there are more chunks
+                time.sleep(SERIAL_PAYLOAD_CHUNK_DELAY)
