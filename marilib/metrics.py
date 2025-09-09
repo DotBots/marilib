@@ -98,7 +98,7 @@ class MetricsTester:
 
         node = self.marilib.gateway.get_node(frame.header.source)
         if node:
-            node.set_probe_stats(payload)
+            node.save_probe_stats(payload)
 
         # self.handle_latency_response(frame.header.source, payload.timestamp_us)
         # self.handle_pdr_metric(frame.header.source, payload.rx_count, payload.tx_count)

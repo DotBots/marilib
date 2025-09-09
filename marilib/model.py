@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import IntEnum
 import rich
+from typing import List
 
 from marilib.mari_protocol import Frame, MetricsProbePayload
 from marilib.protocol import Packet, PacketFieldMetadata
@@ -254,8 +255,7 @@ class MariNode:
     address: int
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
-    probe_stats: MetricsProbePayload = field(default_factory=MetricsProbePayload)
-    probe_stats_start_epoch: MetricsProbePayload = field(default_factory=MetricsProbePayload)
+    probe_stats: deque[MetricsProbePayload] = field(default_factory=lambda: deque(maxlen=30)) # NOTE: related to frequency of probe stats
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
@@ -266,22 +266,49 @@ class MariNode:
     @property
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_NODE_IS_ALIVE)
-    
-    def set_probe_stats(self, probe_stats: MetricsProbePayload):
+
+    def save_probe_stats(self, probe_stats: MetricsProbePayload):
         # save the current probe stats
-        self.probe_stats = probe_stats
-        if self.probe_stats_start_epoch.asn == 0:
-            # if the previous probe stats are not set, set them
-            self.probe_stats_start_epoch = probe_stats
-        elif probe_stats.asn - self.probe_stats_start_epoch.asn > MARI_PROBE_STATS_EPOCH_DURATION_ASN:
-            # if the epoch duration is reached, set the previous probe stats
-            self.probe_stats_start_epoch = probe_stats
+        self.probe_stats.append(probe_stats)
+
+    @property
+    def probe_stats_latest(self) -> MetricsProbePayload | None:
+        if not self.probe_stats:
+            return None
+        return self.probe_stats[-1]
+
+    @property
+    def probe_stats_start_epoch(self) -> MetricsProbePayload | None:
+        if len(self.probe_stats) < 2:
+            return None
+        return self.probe_stats[0]
 
     def stats_pdr_downlink(self) -> float:
-        return self.probe_stats.pdr_downlink_node_gw(self.probe_stats_start_epoch)
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_downlink_node_gw(self.probe_stats_start_epoch)
     
     def stats_pdr_uplink(self) -> float:
-        return self.probe_stats.pdr_uplink_node_gw(self.probe_stats_start_epoch)
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_uplink_node_gw(self.probe_stats_start_epoch)
+    
+    def stats_rssi_node_dbm(self) -> float:
+        if not self.probe_stats_latest:
+            return None
+        return self.probe_stats_latest.rssi_at_node_dbm()
+    
+    def stats_rssi_gw_dbm(self) -> float:
+        if not self.probe_stats_latest:
+            return None
+        return self.probe_stats_latest.rssi_at_gw_dbm()
+
+    def stats_latency_roundtrip_node_edge_ms(self) -> float:
+        """Average latency between node and edge in milliseconds"""
+        # compute average latency between node and edge, using all probe stats
+        if not self.probe_stats:
+            return 0
+        return sum(p.latency_roundtrip_node_edge_ms() for p in self.probe_stats) / len(self.probe_stats)
 
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)

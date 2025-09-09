@@ -193,18 +193,15 @@ class MarilibTUIEdge(MarilibTUI):
         )
         table.add_column("Node Address", style="cyan")
         table.add_column("TX", justify="right")
-        table.add_column("TX/s", justify="right")
+        table.add_column("/s", justify="right")
         table.add_column("RX", justify="right")
-        table.add_column("RX/s", justify="right")
-        table.add_column("SR(total)", justify="right")
-        table.add_column("PDR Down", justify="right")
-        table.add_column("PDR Up", justify="right")
-        table.add_column("RSSI Node", justify="right")
-        table.add_column("RSSI GW", justify="right")
+        table.add_column("/s", justify="right")
+        table.add_column("Downlink PDR / RSSI", justify="center")
+        table.add_column("Uplink PDR / RSSI", justify="center")
         table.add_column("Latency (ms)", justify="right")
         for node in nodes:
             lat_str = (
-                f"{node.probe_stats.latency_roundtrip_node_edge_ms():.1f}" if node.probe_stats.latency_roundtrip_node_edge_ms() > 0 else "..."
+                f"{node.stats_latency_roundtrip_node_edge_ms():.1f}" if node.stats_latency_roundtrip_node_edge_ms() > 0 else "..."
             )
             # PDR Downlink with color coding
             if node.stats_pdr_downlink() > 0:
@@ -228,14 +225,8 @@ class MarilibTUIEdge(MarilibTUI):
             else:
                 pdr_up_str = "..."
 
-            # Success Rate with color coding
-            sr_value = node.stats.success_rate(10)
-            if sr_value > 0.9:
-                sr_str = f"[white]{sr_value:>4.0%}[/white]"
-            elif sr_value > 0.8:
-                sr_str = f"[yellow]{sr_value:>4.0%}[/yellow]"
-            else:
-                sr_str = f"[red]{sr_value:>4.0%}[/red]"
+            rssi_node_str = f"{node.stats_rssi_node_dbm():.0f}" if node.stats_rssi_node_dbm() is not None else "..."
+            rssi_gw_str = f"{node.stats_rssi_gw_dbm():.0f}" if node.stats_rssi_gw_dbm() is not None else "..."
 
             table.add_row(
                 f"0x{node.address:016X}",
@@ -243,11 +234,8 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.sent_count(1, include_test_packets=True)),
                 str(node.stats.received_count(include_test_packets=True)),
                 str(node.stats.received_count(1, include_test_packets=True)),
-                sr_str,
-                pdr_down_str,
-                pdr_up_str,
-                f"{node.probe_stats.rssi_at_node_dbm()}",
-                f"{node.probe_stats.rssi_at_gw_dbm()}",
+                f"{pdr_down_str} / {rssi_node_str} dBm",
+                f"{pdr_up_str} / {rssi_gw_str} dBm",
                 lat_str,
             )
         return table
