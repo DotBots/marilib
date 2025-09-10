@@ -134,7 +134,7 @@ class MetricsProbePayload(Packet):
             edge_rx_count = self.edge_rx_count - probe_stats_start_epoch.edge_rx_count
         if edge_rx_count <= 0:
             return 0
-        return gw_rx_count / edge_rx_count
+        return edge_rx_count / gw_rx_count
 
     def pdr_downlink_gw_edge(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
