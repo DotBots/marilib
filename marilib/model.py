@@ -324,7 +324,7 @@ class MariNode:
             return None
         return self.probe_stats_latest.rssi_at_gw_dbm()
 
-    def stats_latency_roundtrip_node_edge_ms(self) -> float:
+    def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
         """Average latency between node and edge in milliseconds"""
         # compute average latency between node and edge, using all probe stats
         if not self.probe_stats:
@@ -333,13 +333,26 @@ class MariNode:
             self.probe_stats
         )
 
-    def stats_latency_roundtrip_node_cloud_ms(self) -> float:
+    def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
         """Average latency between node and cloud in milliseconds"""
         if not self.probe_stats:
             return 0
         return sum(p.latency_roundtrip_node_cloud_ms() for p in self.probe_stats) / len(
             self.probe_stats
         )
+
+    def stats_latest_latency_roundtrip_node_edge_ms(self) -> float:
+        """Last latency between node and edge in milliseconds"""
+        # compute average latency between node and edge, using all probe stats
+        if not self.probe_stats:
+            return 0
+        return self.probe_stats_latest.latency_roundtrip_node_edge_ms()
+
+    def stats_latest_latency_roundtrip_node_cloud_ms(self) -> float:
+        """Last latency between node and cloud in milliseconds"""
+        if not self.probe_stats:
+            return 0
+        return self.probe_stats_latest.latency_roundtrip_node_cloud_ms()
 
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
@@ -489,13 +502,13 @@ class MariGateway:
     def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_avg_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 else 0.0
 
     def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_avg_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 else 0.0
 
     def stats_latest_node_tx_count(self) -> int:

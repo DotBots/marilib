@@ -197,8 +197,8 @@ class MarilibTUIEdge(MarilibTUI):
 
         for node in nodes:
             lat_str = (
-                f"{node.stats_latency_roundtrip_node_edge_ms():.1f} ms"
-                if node.stats_latency_roundtrip_node_edge_ms() > 0
+                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.1f} ms"
+                if node.stats_avg_latency_roundtrip_node_edge_ms() > 0
                 else "..."
             )
             # PDR Downlink with color coding

@@ -115,8 +115,10 @@ class MetricsLogger:
             "pdr_downlink",
             "pdr_uplink",
             "rssi_dbm_5s",
-            "last_latency_ms",
-            "avg_latency_ms",
+            "avg_latency_edge_ms",
+            "avg_latency_cloud_ms",
+            "last_latency_edge_ms",
+            "last_latency_cloud_ms",
         ]
         self._nodes_writer.writerow(nodes_header)
 
@@ -182,8 +184,10 @@ class MetricsLogger:
                 f"{node.pdr_downlink:.2%}",
                 f"{node.pdr_uplink:.2%}",
                 node.stats.received_rssi_dbm(5),
-                f"{node.metrics_stats.last_ms:.2f}",
-                f"{node.metrics_stats.avg_ms:.2f}",
+                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.2f}",
+                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.2f}", # FIXME!: should use cloud option
+                f"{node.stats_latest_latency_roundtrip_node_edge_ms():.2f}",
+                f"{node.stats_latest_latency_roundtrip_node_edge_ms():.2f}", # FIXME!: should use cloud option
             ]
             self._nodes_writer.writerow(row)
 
