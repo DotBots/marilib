@@ -110,11 +110,25 @@ class MarilibTUIEdge(MarilibTUI):
         has_latency_info = avg_latency_edge > 0
 
         # Check if we have PDR info by looking at the gateway averages
-        avg_pdr_down = mari.gateway.stats_avg_pdr_downlink_radio()
-        avg_pdr_up = mari.gateway.stats_avg_pdr_uplink_radio()
-        has_pdr_info = avg_pdr_down > 0 or avg_pdr_up > 0
+        avg_uart_pdr_up = mari.gateway.stats_avg_pdr_uplink_uart()
+        avg_uart_pdr_down = mari.gateway.stats_avg_pdr_downlink_uart()
+        has_uart_pdr_info = avg_uart_pdr_up > 0 or avg_uart_pdr_down > 0
 
-        if has_latency_info or has_pdr_info:
+        avg_radio_pdr_down = mari.gateway.stats_avg_pdr_downlink_radio()
+        avg_radio_pdr_up = mari.gateway.stats_avg_pdr_uplink_radio()
+        has_radio_pdr_info = avg_radio_pdr_down > 0 or avg_radio_pdr_up > 0
+
+        pdr_info = "  |  PDR:" if has_uart_pdr_info or has_radio_pdr_info else ""
+        radio_pdr_info = (
+            f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}"
+            if has_radio_pdr_info
+            else ""
+        )
+        uart_pdr_info = (
+            f"  UART ↓ {avg_uart_pdr_down:.1%} ↑ {avg_uart_pdr_up:.1%}" if has_uart_pdr_info else ""
+        )
+
+        if has_latency_info or has_uart_pdr_info or has_radio_pdr_info:
             status.append("\n\n")
 
         # Display Latency
@@ -122,40 +136,8 @@ class MarilibTUIEdge(MarilibTUI):
             status.append("Latency:  ", style="bold yellow")
             status.append(f"Avg: {avg_latency_edge:.1f}ms")
 
-        # Display separator
-        if has_latency_info and has_pdr_info:
-            status.append("  |  ")
-
         # Display PDR
-        if has_pdr_info:
-            status.append("Avg. Radio PDR:  ", style="bold yellow")
-            pdr_parts = []
-
-            if avg_pdr_down > 0:
-                if avg_pdr_down > 0.9:
-                    pdr_color = "white"
-                elif avg_pdr_down > 0.8:
-                    pdr_color = "yellow"
-                else:
-                    pdr_color = "red"
-                pdr_parts.append(("Down: ", "white"))
-                pdr_parts.append((f"{avg_pdr_down:.1%}", pdr_color))
-
-            if avg_pdr_up > 0:
-                if pdr_parts:  # Add separator if we have downlink values too
-                    pdr_parts.append((" | ", "white"))
-                if avg_pdr_up > 0.9:
-                    pdr_color = "white"
-                elif avg_pdr_up > 0.8:
-                    pdr_color = "yellow"
-                else:
-                    pdr_color = "red"
-                pdr_parts.append(("Up: ", "white"))
-                pdr_parts.append((f"{avg_pdr_up:.1%}", pdr_color))
-
-            # Append all parts with their respective colors
-            for text, color in pdr_parts:
-                status.append(text, style=color)
+        status.append(f"{pdr_info}{radio_pdr_info}{uart_pdr_info}")
 
         status.append("\n\nStats:    ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
