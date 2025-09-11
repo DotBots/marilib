@@ -162,10 +162,6 @@ class FrameStats:
 
     def add_sent(self, frame: Frame):
         """Adds a sent frame, prunes old entries, and updates counters."""
-        if frame.is_load_test_packet:
-            # never register stats for load test packets
-            return
-
         self.cumulative_sent += 1
         if not frame.is_test_packet:
             self.cumulative_sent_non_test += 1  # NOTE: do we need this?
