@@ -52,7 +52,9 @@ class MarilibCloud(MarilibBase):
         self.mqtt_interface.init()
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
-        self.metrics_tester = MetricsTester(self) # just instantiate, do not start it at the cloud, for now
+        self.metrics_tester = MetricsTester(
+            self
+        )  # just instantiate, do not start it at the cloud, for now
 
     # ============================ MarilibBase methods =========================
 

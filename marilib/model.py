@@ -498,6 +498,30 @@ class MariGateway:
         res = sum(n.stats_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 else 0.0
 
+    def stats_latest_node_tx_count(self) -> int:
+        """Returns sum of tx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.node_tx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_node_rx_count(self) -> int:
+        """Returns sum of rx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.node_rx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_gw_tx_count(self) -> int:
+        """Returns sum of tx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.gw_tx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_gw_rx_count(self) -> int:
+        """Returns sum of rx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.gw_rx_count for n in self.nodes if n.probe_stats_latest)
+
     def update(self):
         """Recurrent bookkeeping. Don't forget to call this periodically on your main loop."""
         self.node_registry = {

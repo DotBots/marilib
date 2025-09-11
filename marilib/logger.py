@@ -92,6 +92,10 @@ class MetricsLogger:
             "avg_latency_ms",
             "avg_pdr_downlink_radio",
             "avg_pdr_uplink_radio",
+            "latest_node_tx_count",
+            "latest_node_rx_count",
+            "latest_gw_tx_count",
+            "latest_gw_rx_count",
         ]
         self._gateway_writer.writerow(gateway_header)
 
@@ -148,8 +152,12 @@ class MetricsLogger:
             gateway.stats.sent_count(1, include_test_packets=False),
             gateway.stats.received_count(1, include_test_packets=False),
             f"{gateway.stats_avg_latency_roundtrip_node_edge_ms():.2f}",
-            f"{gateway.stats_avg_pdr_downlink_radio():.2%}",
-            f"{gateway.stats_avg_pdr_uplink_radio():.2%}",
+            f"{gateway.stats_avg_pdr_downlink_radio():.2f}",
+            f"{gateway.stats_avg_pdr_uplink_radio():.2f}",
+            gateway.stats_latest_node_tx_count(),
+            gateway.stats_latest_node_rx_count(),
+            gateway.stats_latest_gw_tx_count(),
+            gateway.stats_latest_gw_rx_count(),
         ]
         self._gateway_writer.writerow(row)
 

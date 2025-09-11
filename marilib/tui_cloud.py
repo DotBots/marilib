@@ -104,8 +104,14 @@ class MarilibTUICloud(MarilibTUI):
 
         latency_info = f"  |  Latency: {avg_latency_edge:.1f}ms" if has_latency_info else ""
         pdr_info = "  |  PDR:" if has_uart_pdr_info or has_radio_pdr_info else ""
-        radio_pdr_info = f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}" if has_radio_pdr_info else ""
-        uart_pdr_info = f"  UART ↓ {avg_uart_pdr_down:.1%} ↑ {avg_uart_pdr_up:.1%}" if has_uart_pdr_info else ""
+        radio_pdr_info = (
+            f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}"
+            if has_radio_pdr_info
+            else ""
+        )
+        uart_pdr_info = (
+            f"  UART ↓ {avg_uart_pdr_down:.1%} ↑ {avg_uart_pdr_up:.1%}" if has_uart_pdr_info else ""
+        )
 
         table.add_row(
             f"[bold cyan]0x{gateway.info.address:016X}[/bold cyan]",

@@ -120,9 +120,7 @@ class MarilibTUIEdge(MarilibTUI):
         # Display Latency
         if has_latency_info:
             status.append("Latency:  ", style="bold yellow")
-            status.append(
-                f"Avg: {avg_latency_edge:.1f}ms"
-            )
+            status.append(f"Avg: {avg_latency_edge:.1f}ms")
 
         # Display separator
         if has_latency_info and has_pdr_info:
@@ -228,9 +226,7 @@ class MarilibTUIEdge(MarilibTUI):
             # PDR UART Up / Down with color coding
             if node.stats_pdr_downlink_uart() > 0:
                 if node.stats_pdr_downlink_uart() > 0.9:
-                    pdr_down_gw_edge_str = (
-                        f"[white]{node.stats_pdr_downlink_uart():>4.0%}[/white]"
-                    )
+                    pdr_down_gw_edge_str = f"[white]{node.stats_pdr_downlink_uart():>4.0%}[/white]"
                 elif node.stats_pdr_downlink_uart() > 0.8:
                     pdr_down_gw_edge_str = (
                         f"[yellow]{node.stats_pdr_downlink_uart():>4.0%}[/yellow]"
