@@ -145,7 +145,7 @@ class MetricsLogger:
             gateway.stats.received_count(include_test_packets=False),
             gateway.stats.sent_count(1, include_test_packets=False),
             gateway.stats.received_count(1, include_test_packets=False),
-            f"{gateway.metrics_stats.avg_ms:.2f}",
+            f"{gateway.stats_avg_latency_roundtrip_node_edge_ms():.2f}",
         ]
         self._gateway_writer.writerow(row)
 

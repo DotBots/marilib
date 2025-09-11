@@ -294,25 +294,25 @@ class MariNode:
         self.probe_rx_count += 1
         return self.probe_rx_count
 
-    def stats_pdr_downlink(self) -> float:
+    def stats_pdr_downlink_radio(self) -> float:
         if not self.probe_stats_latest:
             return 0
-        return self.probe_stats_latest.pdr_downlink_node_gw(self.probe_stats_start_epoch)
+        return self.probe_stats_latest.pdr_downlink_radio(self.probe_stats_start_epoch)
 
-    def stats_pdr_uplink(self) -> float:
+    def stats_pdr_uplink_radio(self) -> float:
         if not self.probe_stats_latest:
             return 0
-        return self.probe_stats_latest.pdr_uplink_node_gw(self.probe_stats_start_epoch)
+        return self.probe_stats_latest.pdr_uplink_radio(self.probe_stats_start_epoch)
 
-    def stats_pdr_uplink_gw_edge(self) -> float:
+    def stats_pdr_uplink_uart(self) -> float:
         if not self.probe_stats_latest:
             return 0
-        return self.probe_stats_latest.pdr_uplink_gw_edge(self.probe_stats_start_epoch)
+        return self.probe_stats_latest.pdr_uplink_uart(self.probe_stats_start_epoch)
 
-    def stats_pdr_downlink_gw_edge(self) -> float:
+    def stats_pdr_downlink_uart(self) -> float:
         if not self.probe_stats_latest:
             return 0
-        return self.probe_stats_latest.pdr_downlink_gw_edge(self.probe_stats_start_epoch)
+        return self.probe_stats_latest.pdr_downlink_uart(self.probe_stats_start_epoch)
 
     def stats_rssi_node_dbm(self) -> float:
         if not self.probe_stats_latest:
@@ -462,28 +462,28 @@ class MariGateway:
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_GATEWAY_IS_ALIVE)
 
-    def stats_avg_pdr_downlink(self) -> float:
+    def stats_avg_pdr_downlink_radio(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_pdr_downlink() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_downlink_radio() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 and res <= 1.0 else 0.0
 
-    def stats_avg_pdr_uplink(self) -> float:
+    def stats_avg_pdr_uplink_radio(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_pdr_uplink() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_uplink_radio() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 and res <= 1.0 else 0.0
 
-    def stats_avg_pdr_downlink_gw_edge(self) -> float:
+    def stats_avg_pdr_downlink_uart(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_pdr_downlink_gw_edge() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_downlink_uart() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 and res <= 1.0 else 0.0
 
-    def stats_avg_pdr_uplink_gw_edge(self) -> float:
+    def stats_avg_pdr_uplink_uart(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_pdr_uplink_gw_edge() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_uplink_uart() for n in self.nodes) / len(self.nodes)
         return res if res >= 0 and res <= 1.0 else 0.0
 
     def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:

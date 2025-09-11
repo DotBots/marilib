@@ -94,7 +94,7 @@ class MetricsProbePayload(Packet):
     def latency_roundtrip_node_cloud_ms(self) -> float:
         return (self.cloud_rx_ts_us - self.cloud_tx_ts_us) / 1000.0
 
-    def pdr_uplink_node_gw(self, probe_stats_start_epoch=None) -> float:
+    def pdr_uplink_radio(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, use the current values
             gw_rx_count = self.gw_rx_count
@@ -109,7 +109,7 @@ class MetricsProbePayload(Packet):
             return 0
         return gw_rx_count / node_tx_count
 
-    def pdr_downlink_node_gw(self, probe_stats_start_epoch=None) -> float:
+    def pdr_downlink_radio(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, use the current values
             gw_tx_count = self.gw_tx_count
@@ -124,7 +124,7 @@ class MetricsProbePayload(Packet):
             return 0
         return node_rx_count / gw_tx_count
 
-    def pdr_uplink_gw_edge(self, probe_stats_start_epoch=None) -> float:
+    def pdr_uplink_uart(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, just wait a bit
             return -1
@@ -139,7 +139,7 @@ class MetricsProbePayload(Packet):
             return 0
         return edge_rx_count / gw_rx_count
 
-    def pdr_downlink_gw_edge(self, probe_stats_start_epoch=None) -> float:
+    def pdr_downlink_uart(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, just wait a bit
             return -1

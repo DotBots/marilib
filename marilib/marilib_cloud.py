@@ -180,7 +180,9 @@ class MarilibCloud(MarilibBase):
 
                 # handle metrics probe packets
                 if frame.is_test_packet:
-                    self.metrics_tester.handle_response_cloud(frame, gateway, node)
+                    payload = self.metrics_tester.handle_response_cloud(frame, gateway, node)
+                    if payload:
+                        frame.payload = payload.to_bytes()
 
                 return True, EdgeEvent.NODE_DATA, frame
 

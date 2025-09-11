@@ -94,12 +94,12 @@ class MarilibTUICloud(MarilibTUI):
         has_latency_info = avg_latency_edge > 0
 
         # Check if we have PDR info by looking at the gateway averages
-        avg_uart_pdr_up = gateway.stats_avg_pdr_uplink_gw_edge()
-        avg_uart_pdr_down = gateway.stats_avg_pdr_downlink_gw_edge()
+        avg_uart_pdr_up = gateway.stats_avg_pdr_uplink_uart()
+        avg_uart_pdr_down = gateway.stats_avg_pdr_downlink_uart()
         has_uart_pdr_info = avg_uart_pdr_up > 0 or avg_uart_pdr_down > 0
 
-        avg_radio_pdr_down = gateway.stats_avg_pdr_downlink()
-        avg_radio_pdr_up = gateway.stats_avg_pdr_uplink()
+        avg_radio_pdr_down = gateway.stats_avg_pdr_downlink_radio()
+        avg_radio_pdr_up = gateway.stats_avg_pdr_uplink_radio()
         has_radio_pdr_info = avg_radio_pdr_down > 0 or avg_radio_pdr_up > 0
 
         latency_info = f"  |  Latency: {avg_latency_edge:.1f}ms" if has_latency_info else ""

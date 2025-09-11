@@ -110,8 +110,8 @@ class MarilibTUIEdge(MarilibTUI):
         has_latency_info = avg_latency_edge > 0
 
         # Check if we have PDR info by looking at the gateway averages
-        avg_pdr_down = mari.gateway.stats_avg_pdr_downlink()
-        avg_pdr_up = mari.gateway.stats_avg_pdr_uplink()
+        avg_pdr_down = mari.gateway.stats_avg_pdr_downlink_radio()
+        avg_pdr_up = mari.gateway.stats_avg_pdr_uplink_radio()
         has_pdr_info = avg_pdr_down > 0 or avg_pdr_up > 0
 
         if has_latency_info or has_pdr_info:
@@ -204,49 +204,49 @@ class MarilibTUIEdge(MarilibTUI):
                 else "..."
             )
             # PDR Downlink with color coding
-            if node.stats_pdr_downlink() > 0:
-                if node.stats_pdr_downlink() > 0.9:
-                    pdr_down_str = f"[white]{node.stats_pdr_downlink():>4.0%}[/white]"
-                elif node.stats_pdr_downlink() > 0.8:
-                    pdr_down_str = f"[yellow]{node.stats_pdr_downlink():>4.0%}[/yellow]"
+            if node.stats_pdr_downlink_radio() > 0:
+                if node.stats_pdr_downlink_radio() > 0.9:
+                    pdr_down_str = f"[white]{node.stats_pdr_downlink_radio():>4.0%}[/white]"
+                elif node.stats_pdr_downlink_radio() > 0.8:
+                    pdr_down_str = f"[yellow]{node.stats_pdr_downlink_radio():>4.0%}[/yellow]"
                 else:
-                    pdr_down_str = f"[red]{node.stats_pdr_downlink():>4.0%}[/red]"
+                    pdr_down_str = f"[red]{node.stats_pdr_downlink_radio():>4.0%}[/red]"
             else:
                 pdr_down_str = "..."
 
             # PDR Uplink with color coding
-            if node.stats_pdr_uplink() > 0:
-                if node.stats_pdr_uplink() > 0.9:
-                    pdr_up_str = f"[white]{node.stats_pdr_uplink():>4.0%}[/white]"
-                elif node.stats_pdr_uplink() > 0.8:
-                    pdr_up_str = f"[yellow]{node.stats_pdr_uplink():>4.0%}[/yellow]"
+            if node.stats_pdr_uplink_radio() > 0:
+                if node.stats_pdr_uplink_radio() > 0.9:
+                    pdr_up_str = f"[white]{node.stats_pdr_uplink_radio():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_radio() > 0.8:
+                    pdr_up_str = f"[yellow]{node.stats_pdr_uplink_radio():>4.0%}[/yellow]"
                 else:
-                    pdr_up_str = f"[red]{node.stats_pdr_uplink():>4.0%}[/red]"
+                    pdr_up_str = f"[red]{node.stats_pdr_uplink_radio():>4.0%}[/red]"
             else:
                 pdr_up_str = "..."
 
             # PDR UART Up / Down with color coding
-            if node.stats_pdr_downlink_gw_edge() > 0:
-                if node.stats_pdr_downlink_gw_edge() > 0.9:
+            if node.stats_pdr_downlink_uart() > 0:
+                if node.stats_pdr_downlink_uart() > 0.9:
                     pdr_down_gw_edge_str = (
-                        f"[white]{node.stats_pdr_downlink_gw_edge():>4.0%}[/white]"
+                        f"[white]{node.stats_pdr_downlink_uart():>4.0%}[/white]"
                     )
-                elif node.stats_pdr_downlink_gw_edge() > 0.8:
+                elif node.stats_pdr_downlink_uart() > 0.8:
                     pdr_down_gw_edge_str = (
-                        f"[yellow]{node.stats_pdr_downlink_gw_edge():>4.0%}[/yellow]"
+                        f"[yellow]{node.stats_pdr_downlink_uart():>4.0%}[/yellow]"
                     )
                 else:
-                    pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_gw_edge():>4.0%}[/red]"
+                    pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_uart():>4.0%}[/red]"
             else:
                 pdr_down_gw_edge_str = "..."
 
-            if node.stats_pdr_uplink_gw_edge() > 0:
-                if node.stats_pdr_uplink_gw_edge() > 0.9:
-                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_gw_edge():>4.0%}[/white]"
-                elif node.stats_pdr_uplink_gw_edge() > 0.8:
-                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_gw_edge():>4.0%}[/yellow]"
+            if node.stats_pdr_uplink_uart() > 0:
+                if node.stats_pdr_uplink_uart() > 0.9:
+                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_uart():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_uart() > 0.8:
+                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_uart():>4.0%}[/yellow]"
                 else:
-                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_gw_edge():>4.0%}[/red]"
+                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_uart():>4.0%}[/red]"
             else:
                 pdr_up_gw_edge_str = "..."
 

@@ -98,10 +98,10 @@ class MetricsTester:
         # print(f"    size is {len(frame.payload)} bytes: {frame.payload.hex()}\n")
 
         # print(f"    latency_roundtrip_node_edge_ms: {payload.latency_roundtrip_node_edge_ms()}")
-        # print(f"    pdr_uplink_node_gw: {payload.pdr_uplink_node_gw(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_downlink_node_gw: {payload.pdr_downlink_node_gw(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_uplink_gw_edge: {payload.pdr_uplink_gw_edge(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_downlink_gw_edge: {payload.pdr_downlink_gw_edge(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_uplink_radio: {payload.pdr_uplink_radio(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_radio: {payload.pdr_downlink_radio(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_uplink_uart: {payload.pdr_uplink_uart(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_uart: {payload.pdr_downlink_uart(node.probe_stats_start_epoch)}")
         # print(f"    rssi_at_node_dbm: {payload.rssi_at_node_dbm()}")
         # print(f"    rssi_at_gw_dbm: {payload.rssi_at_gw_dbm()}")
 
@@ -131,9 +131,11 @@ class MetricsTester:
         # print(f"    size is {len(frame.payload)} bytes: {frame.payload.hex()}\n")
 
         # print(f"    latency_roundtrip_node_edge_ms: {payload.latency_roundtrip_node_edge_ms()}")
-        # print(f"    pdr_uplink_node_gw: {payload.pdr_uplink_node_gw(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_downlink_node_gw: {payload.pdr_downlink_node_gw(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_uplink_gw_edge: {payload.pdr_uplink_gw_edge(node.probe_stats_start_epoch)}")
-        # print(f"    pdr_downlink_gw_edge: {payload.pdr_downlink_gw_edge(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_uplink_radio: {payload.pdr_uplink_radio(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_radio: {payload.pdr_downlink_radio(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_uplink_uart: {payload.pdr_uplink_uart(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_uart: {payload.pdr_downlink_uart(node.probe_stats_start_epoch)}")
         # print(f"    rssi_at_node_dbm: {payload.rssi_at_node_dbm()}")
         # print(f"    rssi_at_gw_dbm: {payload.rssi_at_gw_dbm()}")
+
+        return payload
