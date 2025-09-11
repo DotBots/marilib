@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from rich import print
 from marilib.mari_protocol import Frame, DefaultPayloadType
 from marilib.mari_protocol import MetricsProbePayload
-from marilib.model import MariNode
+from marilib.model import MariGateway, MariNode
 
 if TYPE_CHECKING:
     from marilib.marilib_edge import MarilibEdge
@@ -69,7 +69,7 @@ class MetricsTester:
         # print(f"    size is {len(payload)} bytes: {payload.hex()}\n")
         self.marilib.send_frame(node.address, payload)
 
-    def handle_response(self, frame: Frame, marilib_type: str):
+    def handle_response_edge(self, frame: Frame):
         """
         Processes a metrics response frame.
         This should be called when a LATENCY_DATA event is received.
@@ -89,12 +89,41 @@ class MetricsTester:
             print(f"[red]Error parsing metrics response: {e}[/]")
             return
 
-        if marilib_type == "edge":
-            payload.edge_rx_ts_us = self.timestamp_us()
-            payload.edge_rx_count = node.probe_increment_rx_count()
-        elif marilib_type == "cloud":
-            payload.cloud_rx_ts_us = self.timestamp_us()
-            payload.cloud_rx_count = node.probe_increment_rx_count()
+        payload.edge_rx_ts_us = self.timestamp_us()
+        payload.edge_rx_count = node.probe_increment_rx_count()
+
+        node.save_probe_stats(payload)
+
+        # print(f"<<< received metrics probe from {frame.header.source:016x}: {payload}")
+        # print(f"    size is {len(frame.payload)} bytes: {frame.payload.hex()}\n")
+
+        # print(f"    latency_roundtrip_node_edge_ms: {payload.latency_roundtrip_node_edge_ms()}")
+        # print(f"    pdr_uplink_node_gw: {payload.pdr_uplink_node_gw(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_node_gw: {payload.pdr_downlink_node_gw(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_uplink_gw_edge: {payload.pdr_uplink_gw_edge(node.probe_stats_start_epoch)}")
+        # print(f"    pdr_downlink_gw_edge: {payload.pdr_downlink_gw_edge(node.probe_stats_start_epoch)}")
+        # print(f"    rssi_at_node_dbm: {payload.rssi_at_node_dbm()}")
+        # print(f"    rssi_at_gw_dbm: {payload.rssi_at_gw_dbm()}")
+
+        return payload
+
+    def handle_response_cloud(self, frame: Frame, gateway: MariGateway, node: MariNode):
+        """
+        Processes a metrics response frame.
+        This should be called when a LATENCY_DATA event is received.
+        """
+        try:
+            payload = MetricsProbePayload().from_bytes(frame.payload)
+            if payload.type_ != DefaultPayloadType.METRICS_PROBE:
+                print(f"[red]Expected METRICS_PROBE, got {payload.type_}[/]")
+                return
+
+        except Exception as e:
+            print(f"[red]Error parsing metrics response: {e}[/]")
+            return
+
+        payload.cloud_rx_ts_us = self.timestamp_us()
+        payload.cloud_rx_count = node.probe_increment_rx_count()
 
         node.save_probe_stats(payload)
 

@@ -106,7 +106,8 @@ class MarilibTUIEdge(MarilibTUI):
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
 
         # --- Latency and PDR Display ---
-        has_latency_info = mari.gateway.metrics_stats.last_ms > 0
+        avg_latency_edge = mari.gateway.stats_avg_latency_roundtrip_node_edge_ms()
+        has_latency_info = avg_latency_edge > 0
 
         # Check if we have PDR info by looking at the gateway averages
         avg_pdr_down = mari.gateway.stats_avg_pdr_downlink()
@@ -118,10 +119,9 @@ class MarilibTUIEdge(MarilibTUI):
 
         # Display Latency
         if has_latency_info:
-            lat = mari.gateway.metrics_stats
             status.append("Latency:  ", style="bold yellow")
             status.append(
-                f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
+                f"Avg: {avg_latency_edge:.1f}ms"
             )
 
         # Display separator
@@ -192,14 +192,14 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("/s", justify="right")
         table.add_column("RX", justify="right")
         table.add_column("/s", justify="right")
-        table.add_column("Radio PDR ↓ | RSSI", justify="center")
-        table.add_column("Radio PDR ↑ | RSSI", justify="center")
-        table.add_column("UART PDR ↑ | ↓", justify="center")
-        table.add_column("Latency (ms)", justify="right")
+        table.add_column("Radio ↓ PDR | RSSI", justify="center")
+        table.add_column("Radio ↑ PDR | RSSI", justify="center")
+        table.add_column("UART PDR ↓ | ↑", justify="center")
+        table.add_column("Latency", justify="center")
 
         for node in nodes:
             lat_str = (
-                f"{node.stats_latency_roundtrip_node_edge_ms():.1f}"
+                f"{node.stats_latency_roundtrip_node_edge_ms():.1f} ms"
                 if node.stats_latency_roundtrip_node_edge_ms() > 0
                 else "..."
             )
@@ -226,16 +226,6 @@ class MarilibTUIEdge(MarilibTUI):
                 pdr_up_str = "..."
 
             # PDR UART Up / Down with color coding
-            if node.stats_pdr_uplink_gw_edge() > 0:
-                if node.stats_pdr_uplink_gw_edge() > 0.9:
-                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_gw_edge():>4.0%}[/white]"
-                elif node.stats_pdr_uplink_gw_edge() > 0.8:
-                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_gw_edge():>4.0%}[/yellow]"
-                else:
-                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_gw_edge():>4.0%}[/red]"
-            else:
-                pdr_up_gw_edge_str = "..."
-
             if node.stats_pdr_downlink_gw_edge() > 0:
                 if node.stats_pdr_downlink_gw_edge() > 0.9:
                     pdr_down_gw_edge_str = (
@@ -249,6 +239,16 @@ class MarilibTUIEdge(MarilibTUI):
                     pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_gw_edge():>4.0%}[/red]"
             else:
                 pdr_down_gw_edge_str = "..."
+
+            if node.stats_pdr_uplink_gw_edge() > 0:
+                if node.stats_pdr_uplink_gw_edge() > 0.9:
+                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_gw_edge():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_gw_edge() > 0.8:
+                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_gw_edge():>4.0%}[/yellow]"
+                else:
+                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_gw_edge():>4.0%}[/red]"
+            else:
+                pdr_up_gw_edge_str = "..."
 
             rssi_node_str = (
                 f"{node.stats_rssi_node_dbm():.0f}"
@@ -267,7 +267,7 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.received_count(1, include_test_packets=True)),
                 f"{pdr_down_str} | {rssi_node_str} dBm",
                 f"{pdr_up_str} | {rssi_gw_str} dBm",
-                f"{pdr_up_gw_edge_str} | {pdr_down_gw_edge_str}",
+                f"{pdr_down_gw_edge_str} | {pdr_up_gw_edge_str}",
                 lat_str,
             )
         return table

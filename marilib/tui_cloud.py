@@ -88,9 +88,28 @@ class MarilibTUICloud(MarilibTUI):
         # Row 1: Gateway info
         node_count = f"{len(gateway.nodes)} / {gateway.info.schedule_uplink_cells}"
         schedule_info = f"#{gateway.info.schedule_id} {gateway.info.schedule_name}"
+
+        # --- Latency and PDR Display ---
+        avg_latency_edge = gateway.stats_avg_latency_roundtrip_node_edge_ms()
+        has_latency_info = avg_latency_edge > 0
+
+        # Check if we have PDR info by looking at the gateway averages
+        avg_uart_pdr_up = gateway.stats_avg_pdr_uplink_gw_edge()
+        avg_uart_pdr_down = gateway.stats_avg_pdr_downlink_gw_edge()
+        has_uart_pdr_info = avg_uart_pdr_up > 0 or avg_uart_pdr_down > 0
+
+        avg_radio_pdr_down = gateway.stats_avg_pdr_downlink()
+        avg_radio_pdr_up = gateway.stats_avg_pdr_uplink()
+        has_radio_pdr_info = avg_radio_pdr_down > 0 or avg_radio_pdr_up > 0
+
+        latency_info = f"  |  Latency: {avg_latency_edge:.1f}ms" if has_latency_info else ""
+        pdr_info = "  |  PDR:" if has_uart_pdr_info or has_radio_pdr_info else ""
+        radio_pdr_info = f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}" if has_radio_pdr_info else ""
+        uart_pdr_info = f"  UART ↓ {avg_uart_pdr_down:.1%} ↑ {avg_uart_pdr_up:.1%}" if has_uart_pdr_info else ""
+
         table.add_row(
             f"[bold cyan]0x{gateway.info.address:016X}[/bold cyan]",
-            f"Nodes: {node_count}  |  Schedule: {schedule_info}",
+            f"Nodes: {node_count}  |  Schedule: {schedule_info}{latency_info}{pdr_info}{radio_pdr_info}{uart_pdr_info}",
         )
 
         # Row 2: Schedule usage

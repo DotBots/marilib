@@ -333,6 +333,14 @@ class MariNode:
             self.probe_stats
         )
 
+    def stats_latency_roundtrip_node_cloud_ms(self) -> float:
+        """Average latency between node and cloud in milliseconds"""
+        if not self.probe_stats:
+            return 0
+        return sum(p.latency_roundtrip_node_cloud_ms() for p in self.probe_stats) / len(
+            self.probe_stats
+        )
+
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
 
@@ -457,12 +465,38 @@ class MariGateway:
     def stats_avg_pdr_downlink(self) -> float:
         if not self.nodes:
             return 0.0
-        return sum(n.stats_pdr_downlink() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_downlink() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
 
     def stats_avg_pdr_uplink(self) -> float:
         if not self.nodes:
             return 0.0
-        return sum(n.stats_pdr_uplink() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_pdr_uplink() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_pdr_downlink_gw_edge(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_downlink_gw_edge() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_pdr_uplink_gw_edge(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_uplink_gw_edge() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 else 0.0
+
+    def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 else 0.0
 
     def update(self):
         """Recurrent bookkeeping. Don't forget to call this periodically on your main loop."""
