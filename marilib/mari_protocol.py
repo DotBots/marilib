@@ -135,7 +135,7 @@ class MetricsProbePayload(Packet):
             # if a packet was received at the gatweway, it should also be received at the edge (otherwise, it's a loss)
             gw_rx_count = self.gw_rx_count - probe_stats_start_epoch.gw_rx_count
             edge_rx_count = self.edge_rx_count - probe_stats_start_epoch.edge_rx_count
-        if edge_rx_count <= 0:
+        if gw_rx_count <= 0:
             return 0
         return edge_rx_count / gw_rx_count
 

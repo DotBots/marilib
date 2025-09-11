@@ -151,7 +151,7 @@ def main(port: str | None, mqtt_host: str, load: int, send_periodic: float, log_
                     mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
                 last_normal_send_time = current_time
 
-            time.sleep(0.5)
+            time.sleep(1)
 
     except KeyboardInterrupt:
         pass

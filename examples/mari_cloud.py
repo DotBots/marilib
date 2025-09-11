@@ -77,7 +77,7 @@ def main(mqtt_url: str, network_id: int, send_periodic: float, log_dir: str):
                 last_normal_send_time = current_time
 
             mari.render_tui()
-            time.sleep(0.5)
+            time.sleep(1)
 
     except KeyboardInterrupt:
         pass

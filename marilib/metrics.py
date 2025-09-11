@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class MetricsTester:
     """A thread-based class to periodically test metrics to all nodes."""
 
-    def __init__(self, marilib: "MarilibEdge", interval: float = 1):
+    def __init__(self, marilib: "MarilibEdge", interval: float = 3):
         self.marilib = marilib
         self.interval = interval
         self._stop_event = threading.Event()
