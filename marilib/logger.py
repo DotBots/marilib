@@ -187,9 +187,9 @@ class MetricsLogger:
                 node.stats_rssi_node_dbm(),
                 node.stats_rssi_gw_dbm(),
                 f"{node.stats_avg_latency_roundtrip_node_edge_ms():.2f}",
-                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.2f}", # FIXME!: should use cloud option
+                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.2f}",  # FIXME!: should use cloud option
                 f"{node.stats_latest_latency_roundtrip_node_edge_ms():.2f}",
-                f"{node.stats_latest_latency_roundtrip_node_edge_ms():.2f}", # FIXME!: should use cloud option
+                f"{node.stats_latest_latency_roundtrip_node_edge_ms():.2f}",  # FIXME!: should use cloud option
             ]
             self._nodes_writer.writerow(row)
 

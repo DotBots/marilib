@@ -498,13 +498,17 @@ class MariGateway:
     def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_avg_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_avg_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(
+            self.nodes
+        )
         return res if res >= 0 else 0.0
 
     def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
         if not self.nodes:
             return 0.0
-        res = sum(n.stats_avg_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(self.nodes)
+        res = sum(n.stats_avg_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(
+            self.nodes
+        )
         return res if res >= 0 else 0.0
 
     def stats_latest_node_tx_count(self) -> int:
