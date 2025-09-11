@@ -108,12 +108,10 @@ class MarilibTUIEdge(MarilibTUI):
         # --- Latency and PDR Display ---
         has_latency_info = mari.gateway.metrics_stats.last_ms > 0
 
-        nodes_with_pdr_attr = [n for n in mari.gateway.nodes if hasattr(n, "pdr_downlink")]
-        downlink_values = [
-            n.pdr_downlink for n in nodes_with_pdr_attr if n.pdr_downlink is not None
-        ]
-        uplink_values = [n.pdr_uplink for n in nodes_with_pdr_attr if n.pdr_uplink is not None]
-        has_pdr_info = bool(downlink_values) or bool(uplink_values)
+        # Check if we have PDR info by looking at the gateway averages
+        avg_pdr_down = mari.gateway.stats_avg_pdr_downlink()
+        avg_pdr_up = mari.gateway.stats_avg_pdr_uplink()
+        has_pdr_info = avg_pdr_down > 0 or avg_pdr_up > 0
 
         if has_latency_info or has_pdr_info:
             status.append("\n\n")
@@ -132,11 +130,10 @@ class MarilibTUIEdge(MarilibTUI):
 
         # Display PDR
         if has_pdr_info:
-            status.append("PDR avg:  ", style="bold yellow")
+            status.append("Avg. Radio PDR:  ", style="bold yellow")
             pdr_parts = []
 
-            if downlink_values:
-                avg_pdr_down = sum(downlink_values) / len(downlink_values)
+            if avg_pdr_down > 0:
                 if avg_pdr_down > 0.9:
                     pdr_color = "white"
                 elif avg_pdr_down > 0.8:
@@ -146,10 +143,9 @@ class MarilibTUIEdge(MarilibTUI):
                 pdr_parts.append(("Down: ", "white"))
                 pdr_parts.append((f"{avg_pdr_down:.1%}", pdr_color))
 
-            if uplink_values:
+            if avg_pdr_up > 0:
                 if pdr_parts:  # Add separator if we have downlink values too
                     pdr_parts.append((" | ", "white"))
-                avg_pdr_up = sum(uplink_values) / len(uplink_values)
                 if avg_pdr_up > 0.9:
                     pdr_color = "white"
                 elif avg_pdr_up > 0.8:

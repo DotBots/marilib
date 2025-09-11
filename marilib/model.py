@@ -454,6 +454,16 @@ class MariGateway:
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_GATEWAY_IS_ALIVE)
 
+    def stats_avg_pdr_downlink(self) -> float:
+        if not self.nodes:
+            return 0.0
+        return sum(n.stats_pdr_downlink() for n in self.nodes) / len(self.nodes)
+
+    def stats_avg_pdr_uplink(self) -> float:
+        if not self.nodes:
+            return 0.0
+        return sum(n.stats_pdr_uplink() for n in self.nodes) / len(self.nodes)
+
     def update(self):
         """Recurrent bookkeeping. Don't forget to call this periodically on your main loop."""
         self.node_registry = {
