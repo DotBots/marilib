@@ -106,43 +106,38 @@ class MarilibTUIEdge(MarilibTUI):
         status.append(mari.gateway.info.repr_schedule_cells_with_colors())
 
         # --- Latency and PDR Display ---
-        has_latency_info = mari.gateway.metrics_stats.last_ms > 0
+        avg_latency_edge = mari.gateway.stats_avg_latency_roundtrip_node_edge_ms()
+        has_latency_info = avg_latency_edge > 0
 
-        nodes_with_pdr_attr = [n for n in mari.gateway.nodes if hasattr(n, "pdr_downlink")]
-        downlink_values = [
-            n.pdr_downlink for n in nodes_with_pdr_attr if n.pdr_downlink is not None
-        ]
-        uplink_values = [n.pdr_uplink for n in nodes_with_pdr_attr if n.pdr_uplink is not None]
-        has_pdr_info = bool(downlink_values) or bool(uplink_values)
+        # Check if we have PDR info by looking at the gateway averages
+        avg_uart_pdr_up = mari.gateway.stats_avg_pdr_uplink_uart()
+        avg_uart_pdr_down = mari.gateway.stats_avg_pdr_downlink_uart()
+        has_uart_pdr_info = avg_uart_pdr_up > 0 or avg_uart_pdr_down > 0
 
-        if has_latency_info or has_pdr_info:
+        avg_radio_pdr_down = mari.gateway.stats_avg_pdr_downlink_radio()
+        avg_radio_pdr_up = mari.gateway.stats_avg_pdr_uplink_radio()
+        has_radio_pdr_info = avg_radio_pdr_down > 0 or avg_radio_pdr_up > 0
+
+        pdr_info = "  |  PDR:" if has_uart_pdr_info or has_radio_pdr_info else ""
+        radio_pdr_info = (
+            f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}"
+            if has_radio_pdr_info
+            else ""
+        )
+        uart_pdr_info = (
+            f"  UART ↓ {avg_uart_pdr_down:.1%} ↑ {avg_uart_pdr_up:.1%}" if has_uart_pdr_info else ""
+        )
+
+        if has_latency_info or has_uart_pdr_info or has_radio_pdr_info:
             status.append("\n\n")
 
         # Display Latency
         if has_latency_info:
-            lat = mari.gateway.metrics_stats
             status.append("Latency:  ", style="bold yellow")
-            status.append(
-                f"Last: {lat.last_ms:.1f}ms | Avg: {lat.avg_ms:.1f}ms | Min: {lat.min_ms:.1f}ms | Max: {lat.max_ms:.1f}ms"
-            )
-
-        # Display separator
-        if has_latency_info and has_pdr_info:
-            status.append("  |  ")
+            status.append(f"Avg: {avg_latency_edge:.1f}ms")
 
         # Display PDR
-        if has_pdr_info:
-            pdr_line_parts = []
-            if downlink_values:
-                avg_pdr_down = sum(downlink_values) / len(downlink_values)
-                pdr_line_parts.append(f"Down: {avg_pdr_down:.1%}")
-
-            if uplink_values:
-                avg_pdr_up = sum(uplink_values) / len(uplink_values)
-                pdr_line_parts.append(f"Up: {avg_pdr_up:.1%}")
-
-            status.append("PDR avg:  ", style="bold yellow")
-            status.append(" | ".join(pdr_line_parts))
+        status.append(f"{pdr_info}{radio_pdr_info}{uart_pdr_info}")
 
         status.append("\n\nStats:    ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
@@ -174,27 +169,72 @@ class MarilibTUIEdge(MarilibTUI):
         )
         table.add_column("Node Address", style="cyan")
         table.add_column("TX", justify="right")
-        table.add_column("TX/s", justify="right")
+        table.add_column("/s", justify="right")
         table.add_column("RX", justify="right")
-        table.add_column("RX/s", justify="right")
-        table.add_column("SR(total)", justify="right")
-        table.add_column("PDR Down", justify="right")
-        table.add_column("PDR Up", justify="right")
-        table.add_column("RSSI", justify="right")
-        table.add_column("Latency (ms)", justify="right")
+        table.add_column("/s", justify="right")
+        table.add_column("Radio ↓ PDR | RSSI", justify="center")
+        table.add_column("Radio ↑ PDR | RSSI", justify="center")
+        table.add_column("UART PDR ↓ | ↑", justify="center")
+        table.add_column("Latency", justify="center")
+
         for node in nodes:
             lat_str = (
-                f"{node.metrics_stats.avg_ms:.1f}" if node.metrics_stats.last_ms > 0 else "..."
-            )
-            pdr_down_str = (
-                f"{node.pdr_downlink:>4.0%}"
-                if hasattr(node, "pdr_downlink") and node.pdr_downlink is not None
+                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.1f} ms"
+                if node.stats_avg_latency_roundtrip_node_edge_ms() > 0
                 else "..."
             )
-            pdr_up_str = (
-                f"{node.pdr_uplink:>4.0%}"
-                if hasattr(node, "pdr_uplink") and node.pdr_uplink is not None
+            # PDR Downlink with color coding
+            if node.stats_pdr_downlink_radio() > 0:
+                if node.stats_pdr_downlink_radio() > 0.9:
+                    pdr_down_str = f"[white]{node.stats_pdr_downlink_radio():>4.0%}[/white]"
+                elif node.stats_pdr_downlink_radio() > 0.8:
+                    pdr_down_str = f"[yellow]{node.stats_pdr_downlink_radio():>4.0%}[/yellow]"
+                else:
+                    pdr_down_str = f"[red]{node.stats_pdr_downlink_radio():>4.0%}[/red]"
+            else:
+                pdr_down_str = "..."
+
+            # PDR Uplink with color coding
+            if node.stats_pdr_uplink_radio() > 0:
+                if node.stats_pdr_uplink_radio() > 0.9:
+                    pdr_up_str = f"[white]{node.stats_pdr_uplink_radio():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_radio() > 0.8:
+                    pdr_up_str = f"[yellow]{node.stats_pdr_uplink_radio():>4.0%}[/yellow]"
+                else:
+                    pdr_up_str = f"[red]{node.stats_pdr_uplink_radio():>4.0%}[/red]"
+            else:
+                pdr_up_str = "..."
+
+            # PDR UART Up / Down with color coding
+            if node.stats_pdr_downlink_uart() > 0:
+                if node.stats_pdr_downlink_uart() > 0.9:
+                    pdr_down_gw_edge_str = f"[white]{node.stats_pdr_downlink_uart():>4.0%}[/white]"
+                elif node.stats_pdr_downlink_uart() > 0.8:
+                    pdr_down_gw_edge_str = (
+                        f"[yellow]{node.stats_pdr_downlink_uart():>4.0%}[/yellow]"
+                    )
+                else:
+                    pdr_down_gw_edge_str = f"[red]{node.stats_pdr_downlink_uart():>4.0%}[/red]"
+            else:
+                pdr_down_gw_edge_str = "..."
+
+            if node.stats_pdr_uplink_uart() > 0:
+                if node.stats_pdr_uplink_uart() > 0.9:
+                    pdr_up_gw_edge_str = f"[white]{node.stats_pdr_uplink_uart():>4.0%}[/white]"
+                elif node.stats_pdr_uplink_uart() > 0.8:
+                    pdr_up_gw_edge_str = f"[yellow]{node.stats_pdr_uplink_uart():>4.0%}[/yellow]"
+                else:
+                    pdr_up_gw_edge_str = f"[red]{node.stats_pdr_uplink_uart():>4.0%}[/red]"
+            else:
+                pdr_up_gw_edge_str = "..."
+
+            rssi_node_str = (
+                f"{node.stats_rssi_node_dbm():.0f}"
+                if node.stats_rssi_node_dbm() is not None
                 else "..."
+            )
+            rssi_gw_str = (
+                f"{node.stats_rssi_gw_dbm():.0f}" if node.stats_rssi_gw_dbm() is not None else "..."
             )
 
             table.add_row(
@@ -203,10 +243,9 @@ class MarilibTUIEdge(MarilibTUI):
                 str(node.stats.sent_count(1, include_test_packets=True)),
                 str(node.stats.received_count(include_test_packets=True)),
                 str(node.stats.received_count(1, include_test_packets=True)),
-                f"{node.stats.success_rate(10):>4.0%}",
-                pdr_down_str,
-                pdr_up_str,
-                f"{node.stats.received_rssi_dbm(5)}",
+                f"{pdr_down_str} | {rssi_node_str} dBm",
+                f"{pdr_up_str} | {rssi_gw_str} dBm",
+                f"{pdr_down_gw_edge_str} | {pdr_up_gw_edge_str}",
                 lat_str,
             )
         return table

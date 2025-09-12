@@ -60,6 +60,7 @@ class MarilibEdge(MarilibBase):
         self.serial_interface.init(self.on_serial_data_received)
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
+        self.metrics_tester = MetricsTester(self)  # it may or not be started later
 
     # ============================ MarilibBase methods =========================
 
@@ -200,12 +201,13 @@ class MarilibEdge(MarilibBase):
                 frame = Frame().from_bytes(data[1:])
                 with self.lock:
                     self.gateway.update_node_liveness(frame.header.source)
-
-                    # Handle latency packets
-                    if frame.is_test_packet and self.metrics_tester:
-                        self.metrics_tester.handle_response(frame)
-
                     self.gateway.register_received_frame(frame)
+
+                    # handle metrics probe packets
+                    if frame.is_test_packet:
+                        payload = self.metrics_tester.handle_response_edge(frame)
+                        if payload:
+                            frame.payload = payload.to_bytes()
 
                 return True, event_type, frame
             except (ValueError, ProtocolPayloadParserException):
@@ -243,14 +245,10 @@ class MarilibEdge(MarilibBase):
     # ============================ Utility methods =============================
 
     def metrics_test_enable(self):
-        if self.metrics_tester is None:
-            self.metrics_tester = MetricsTester(self)
-            self.metrics_tester.start()
+        self.metrics_tester.start()
 
     def metrics_test_disable(self):
-        if self.metrics_tester is not None:
-            self.metrics_tester.stop()
-            self.metrics_tester = None
+        self.metrics_tester.stop()
 
     # ============================ Private methods =============================
 

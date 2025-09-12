@@ -1,14 +1,12 @@
 import time
 
 import click
-from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, MARI_NET_ID_DEFAULT, Frame
+from marilib.mari_protocol import MARI_BROADCAST_ADDRESS, MARI_NET_ID_DEFAULT, DefaultPayload, Frame
 from marilib.marilib_cloud import MarilibCloud
 from marilib.model import EdgeEvent, GatewayInfo, MariNode
 from marilib.communication_adapter import MQTTAdapter
 from marilib.tui_cloud import MarilibTUICloud
 from marilib.logger import MetricsLogger
-
-NORMAL_DATA_PAYLOAD = b"NORMAL_APP_DATA"
 
 
 def on_event(event: EdgeEvent, event_data: MariNode | Frame | GatewayInfo):
@@ -33,13 +31,21 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame | GatewayInfo):
     help=f"Network ID to use [default: 0x{MARI_NET_ID_DEFAULT:04X}]",
 )
 @click.option(
+    "--send-periodic",
+    "-s",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Send periodic packet every N seconds (0 = disabled)",
+)
+@click.option(
     "--log-dir",
     default="logs",
     show_default=True,
     help="Directory to save metric log files.",
     type=click.Path(),
 )
-def main(mqtt_url: str, network_id: int, log_dir: str):
+def main(mqtt_url: str, network_id: int, send_periodic: float, log_dir: str):
     """A basic example of using the MariLibCloud library."""
 
     mari = MarilibCloud(
@@ -54,12 +60,24 @@ def main(mqtt_url: str, network_id: int, log_dir: str):
     )
 
     try:
+        if send_periodic > 0:
+            normal_traffic_interval = send_periodic
+            last_normal_send_time = 0
+
         while True:
+            current_time = time.monotonic()
+
             mari.update()
-            if mari.nodes:
-                mari.send_frame(MARI_BROADCAST_ADDRESS, NORMAL_DATA_PAYLOAD)
+            if (
+                send_periodic > 0
+                and current_time - last_normal_send_time >= normal_traffic_interval
+            ):
+                if mari.nodes:
+                    mari.send_frame(MARI_BROADCAST_ADDRESS, DefaultPayload().to_bytes())
+                last_normal_send_time = current_time
+
             mari.render_tui()
-            time.sleep(0.5)
+            time.sleep(1)
 
     except KeyboardInterrupt:
         pass

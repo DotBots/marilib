@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 import rich
 
-from marilib.mari_protocol import Frame
+from marilib.mari_protocol import Frame, MetricsProbePayload
 from marilib.protocol import Packet, PacketFieldMetadata
 
 # schedules taken from: https://github.com/DotBots/mari-evaluation/blob/main/simulations/radio-schedule.ipynb
@@ -51,6 +51,10 @@ EMPTY_SCHEDULE_DATA = {
 
 MARI_TIMEOUT_NODE_IS_ALIVE = 3  # seconds
 MARI_TIMEOUT_GATEWAY_IS_ALIVE = 3  # seconds
+
+# MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 20 # about 10 seconds
+MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 60  # about 30 seconds
+# MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 2 # about 1 second
 
 
 @dataclass
@@ -158,10 +162,6 @@ class FrameStats:
 
     def add_sent(self, frame: Frame):
         """Adds a sent frame, prunes old entries, and updates counters."""
-        if frame.is_load_test_packet:
-            # never register stats for load test packets
-            return
-
         self.cumulative_sent += 1
         if not frame.is_test_packet:
             self.cumulative_sent_non_test += 1  # NOTE: do we need this?
@@ -250,16 +250,105 @@ class MariNode:
     address: int
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
+    probe_stats: deque[MetricsProbePayload] = field(
+        default_factory=lambda: deque(maxlen=15)
+    )  # NOTE: related to frequency of probe stats
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)
     last_reported_rx_count: int = 0
     last_reported_tx_count: int = 0
     pdr_downlink: float = 0.0
     pdr_uplink: float = 0.0
+    probe_tx_count: int = 0
+    probe_rx_count: int = 0
 
     @property
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_NODE_IS_ALIVE)
+
+    def save_probe_stats(self, probe_stats: MetricsProbePayload):
+        # save the current probe stats
+        self.probe_stats.append(probe_stats)
+
+    @property
+    def probe_stats_latest(self) -> MetricsProbePayload | None:
+        if not self.probe_stats:
+            return None
+        return self.probe_stats[-1]
+
+    @property
+    def probe_stats_start_epoch(self) -> MetricsProbePayload | None:
+        if len(self.probe_stats) < 2:
+            return None
+        return self.probe_stats[0]
+
+    def probe_increment_tx_count(self) -> int:
+        self.probe_tx_count += 1
+        return self.probe_tx_count
+
+    def probe_increment_rx_count(self) -> int:
+        self.probe_rx_count += 1
+        return self.probe_rx_count
+
+    def stats_pdr_downlink_radio(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_downlink_radio(self.probe_stats_start_epoch)
+
+    def stats_pdr_uplink_radio(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_uplink_radio(self.probe_stats_start_epoch)
+
+    def stats_pdr_uplink_uart(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_uplink_uart(self.probe_stats_start_epoch)
+
+    def stats_pdr_downlink_uart(self) -> float:
+        if not self.probe_stats_latest:
+            return 0
+        return self.probe_stats_latest.pdr_downlink_uart(self.probe_stats_start_epoch)
+
+    def stats_rssi_node_dbm(self) -> float:
+        if not self.probe_stats_latest:
+            return None
+        return self.probe_stats_latest.rssi_at_node_dbm()
+
+    def stats_rssi_gw_dbm(self) -> float:
+        if not self.probe_stats_latest:
+            return None
+        return self.probe_stats_latest.rssi_at_gw_dbm()
+
+    def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
+        """Average latency between node and edge in milliseconds"""
+        # compute average latency between node and edge, using all probe stats
+        if not self.probe_stats:
+            return 0
+        return sum(p.latency_roundtrip_node_edge_ms() for p in self.probe_stats) / len(
+            self.probe_stats
+        )
+
+    def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
+        """Average latency between node and cloud in milliseconds"""
+        if not self.probe_stats:
+            return 0
+        return sum(p.latency_roundtrip_node_cloud_ms() for p in self.probe_stats) / len(
+            self.probe_stats
+        )
+
+    def stats_latest_latency_roundtrip_node_edge_ms(self) -> float:
+        """Last latency between node and edge in milliseconds"""
+        # compute average latency between node and edge, using all probe stats
+        if not self.probe_stats:
+            return 0
+        return self.probe_stats_latest.latency_roundtrip_node_edge_ms()
+
+    def stats_latest_latency_roundtrip_node_cloud_ms(self) -> float:
+        """Last latency between node and cloud in milliseconds"""
+        if not self.probe_stats:
+            return 0
+        return self.probe_stats_latest.latency_roundtrip_node_cloud_ms()
 
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
@@ -381,6 +470,70 @@ class MariGateway:
     @property
     def is_alive(self) -> bool:
         return datetime.now() - self.last_seen < timedelta(seconds=MARI_TIMEOUT_GATEWAY_IS_ALIVE)
+
+    def stats_avg_pdr_downlink_radio(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_downlink_radio() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_pdr_uplink_radio(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_uplink_radio() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_pdr_downlink_uart(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_downlink_uart() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_pdr_uplink_uart(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_pdr_uplink_uart() for n in self.nodes) / len(self.nodes)
+        return res if res >= 0 and res <= 1.0 else 0.0
+
+    def stats_avg_latency_roundtrip_node_edge_ms(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_avg_latency_roundtrip_node_edge_ms() for n in self.nodes) / len(
+            self.nodes
+        )
+        return res if res >= 0 else 0.0
+
+    def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
+        if not self.nodes:
+            return 0.0
+        res = sum(n.stats_avg_latency_roundtrip_node_cloud_ms() for n in self.nodes) / len(
+            self.nodes
+        )
+        return res if res >= 0 else 0.0
+
+    def stats_latest_node_tx_count(self) -> int:
+        """Returns sum of tx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.node_tx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_node_rx_count(self) -> int:
+        """Returns sum of rx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.node_rx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_gw_tx_count(self) -> int:
+        """Returns sum of tx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.gw_tx_count for n in self.nodes if n.probe_stats_latest)
+
+    def stats_latest_gw_rx_count(self) -> int:
+        """Returns sum of rx counts for all nodes"""
+        if not self.nodes:
+            return 0
+        return sum(n.probe_stats_latest.gw_rx_count for n in self.nodes if n.probe_stats_latest)
 
     def update(self):
         """Recurrent bookkeeping. Don't forget to call this periodically on your main loop."""

@@ -52,6 +52,9 @@ class MarilibCloud(MarilibBase):
         self.mqtt_interface.init()
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
+        self.metrics_tester = MetricsTester(
+            self
+        )  # just instantiate, do not start it at the cloud, for now
 
     # ============================ MarilibBase methods =========================
 
@@ -168,12 +171,21 @@ class MarilibCloud(MarilibBase):
                 gateway_address = frame.header.destination
                 node_address = frame.header.source
                 gateway = self.gateways.get(gateway_address)
+                if not gateway:
+                    return False, EdgeEvent.UNKNOWN, None
                 node = gateway.get_node(node_address)
                 if not gateway or not node:
                     return False, EdgeEvent.UNKNOWN, None
 
                 gateway.update_node_liveness(node_address)
-                gateway.register_received_frame(frame, is_test_packet=False)
+                gateway.register_received_frame(frame)
+
+                # handle metrics probe packets
+                if frame.is_test_packet:
+                    payload = self.metrics_tester.handle_response_cloud(frame, gateway, node)
+                    if payload:
+                        frame.payload = payload.to_bytes()
+
                 return True, EdgeEvent.NODE_DATA, frame
 
         except Exception as e:
