@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from rich import print
 from marilib.mari_protocol import Frame, DefaultPayloadType
 from marilib.mari_protocol import MetricsProbePayload
-from marilib.model import MariGateway, MariNode
+from marilib.model import MariGateway, MariNode, MARI_PROBE_STATS_MAX_LEN
 
 if TYPE_CHECKING:
     from marilib.marilib_edge import MarilibEdge
@@ -16,13 +16,23 @@ class MetricsTester:
 
     def __init__(self, marilib: "MarilibEdge", interval: float = 3):
         self.marilib = marilib
-        self.interval = interval
+        self.set_interval(interval)
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
+    def set_interval(self, interval: float):
+        if interval < 0 or interval > MARI_PROBE_STATS_MAX_LEN:
+            raise ValueError(f"Interval must be >= 0 and <= {MARI_PROBE_STATS_MAX_LEN}")
+        self.interval = interval
+
     def start(self):
         """Starts the metrics testing thread."""
-        print("[yellow]Metrics tester started.[/]")
+        if self.interval < 0 or self.interval > MARI_PROBE_STATS_MAX_LEN:
+            raise ValueError(f"Interval must be >= 0 and <= {MARI_PROBE_STATS_MAX_LEN}")
+        if self.interval == 0:
+            print("[yellow]Metrics tester disabled.[/]")
+            return
+        print(f"[yellow]Metrics tester started with interval {self.interval} seconds.[/]")
         self._thread.start()
 
     def stop(self):

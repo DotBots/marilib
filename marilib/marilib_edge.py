@@ -44,6 +44,7 @@ class MarilibEdge(MarilibBase):
     gateway: MariGateway = field(default_factory=MariGateway)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     metrics_tester: MetricsTester | None = None
+    metrics_probe_period: float | None = None
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_serial_data_ts: datetime = field(default_factory=datetime.now)
@@ -60,7 +61,8 @@ class MarilibEdge(MarilibBase):
         self.serial_interface.init(self.on_serial_data_received)
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
-        self.metrics_tester = MetricsTester(self)  # it may or not be started later
+        self.metrics_tester = MetricsTester(self, self.metrics_probe_period)
+        self.metrics_tester.start()
 
     # ============================ MarilibBase methods =========================
 
@@ -244,8 +246,8 @@ class MarilibEdge(MarilibBase):
 
     # ============================ Utility methods =============================
 
-    def metrics_test_enable(self):
-        self.metrics_tester.start()
+    # def metrics_test_enable(self):
+    #     self.metrics_tester.start()
 
     def metrics_test_disable(self):
         self.metrics_tester.stop()

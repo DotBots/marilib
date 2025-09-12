@@ -94,6 +94,12 @@ class MetricsProbePayload(Packet):
     def latency_roundtrip_node_cloud_ms(self) -> float:
         return (self.cloud_rx_ts_us - self.cloud_tx_ts_us) / 1000.0
 
+    def pdr_saturated(self, count_a: int, count_b: int) -> float:
+        pdr = count_a / count_b
+        if pdr > 1.0:
+            return 0.0
+        return pdr
+
     def pdr_uplink_radio(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
             # if no epoch is provided, use the current values
@@ -107,7 +113,7 @@ class MetricsProbePayload(Packet):
             node_tx_count = self.node_tx_count - probe_stats_start_epoch.node_tx_count
         if node_tx_count <= 0:
             return 0
-        return gw_rx_count / node_tx_count
+        return self.pdr_saturated(gw_rx_count, node_tx_count)
 
     def pdr_downlink_radio(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
@@ -120,9 +126,7 @@ class MetricsProbePayload(Packet):
                 return 0
             gw_tx_count = self.gw_tx_count - probe_stats_start_epoch.gw_tx_count
             node_rx_count = self.node_rx_count - probe_stats_start_epoch.node_rx_count
-        if gw_tx_count <= 0:
-            return 0
-        return node_rx_count / gw_tx_count
+        return self.pdr_saturated(node_rx_count, gw_tx_count)
 
     def pdr_uplink_uart(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
@@ -135,9 +139,7 @@ class MetricsProbePayload(Packet):
             # if a packet was received at the gatweway, it should also be received at the edge (otherwise, it's a loss)
             gw_rx_count = self.gw_rx_count - probe_stats_start_epoch.gw_rx_count
             edge_rx_count = self.edge_rx_count - probe_stats_start_epoch.edge_rx_count
-        if gw_rx_count <= 0:
-            return 0
-        return edge_rx_count / gw_rx_count
+        return self.pdr_saturated(edge_rx_count, gw_rx_count)
 
     def pdr_downlink_uart(self, probe_stats_start_epoch=None) -> float:
         if probe_stats_start_epoch is None:
@@ -150,9 +152,7 @@ class MetricsProbePayload(Packet):
             # if a packet was sent at the edge, it should also be sent at the gateway (otherwise, it's a loss)
             gw_tx_count = self.gw_tx_count - probe_stats_start_epoch.gw_tx_count
             edge_tx_count = self.edge_tx_count - probe_stats_start_epoch.edge_tx_count
-        if edge_tx_count <= 0:
-            return 0
-        return gw_tx_count / edge_tx_count
+        return self.pdr_saturated(gw_tx_count, edge_tx_count)
 
     def rssi_at_node_dbm(self) -> int:
         if self.rssi_at_node > 127:
