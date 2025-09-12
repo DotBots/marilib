@@ -32,13 +32,20 @@ def on_event(event: EdgeEvent, event_data: MariNode | Frame):
     help="MQTT broker to use (default: None, no cloud)",
 )
 @click.option(
+    "--metrics-probe-interval",
+    "-i",
+    type=float,
+    default=0,
+    help="How often to send a metrics probe in seconds (default: 0, no metrics)",
+)
+@click.option(
     "--log-dir",
     default="logs",
     show_default=True,
     help="Directory to save metric log files.",
     type=click.Path(),
 )
-def main(port: str | None, mqtt_url: str, log_dir: str):
+def main(port: str | None, mqtt_url: str, metrics_probe_interval: float, log_dir: str):
     """A basic example of using the MarilibEdge library."""
 
     mari = MarilibEdge(
@@ -50,6 +57,7 @@ def main(port: str | None, mqtt_url: str, log_dir: str):
         ),
         tui=MarilibTUIEdge(),
         main_file=__file__,
+        metrics_probe_period=metrics_probe_interval,  # use a less frequent probe to interfere less with the main traffic
     )
 
     try:

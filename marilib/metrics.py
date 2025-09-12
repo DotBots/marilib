@@ -20,6 +20,9 @@ class MetricsTester:
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
+    def set_interval(self, interval: float):
+        self.interval = interval
+
     def start(self):
         """Starts the metrics testing thread."""
         print("[yellow]Metrics tester started.[/]")

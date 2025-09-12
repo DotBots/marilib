@@ -121,11 +121,10 @@ def main(port: str | None, mqtt_host: str, load: int, send_periodic: float, log_
         logger=logger,
         main_file=__file__,
         tui=MarilibTUIEdge(test_state=test_state),
+        metrics_probe_period=1.0,  # use a relatively frequent probe period to get more stats
     )
 
     stop_event = threading.Event()
-
-    mari.metrics_test_enable()
 
     load_tester = LoadTester(mari, test_state, stop_event)
     if load > 0:

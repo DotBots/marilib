@@ -251,7 +251,7 @@ class MariNode:
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
     probe_stats: deque[MetricsProbePayload] = field(
-        default_factory=lambda: deque(maxlen=15)
+        default_factory=lambda: deque(maxlen=10)
     )  # NOTE: related to frequency of probe stats
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)
