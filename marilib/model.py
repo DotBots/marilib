@@ -56,6 +56,8 @@ MARI_TIMEOUT_GATEWAY_IS_ALIVE = 3  # seconds
 MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 60  # about 30 seconds
 # MARI_PROBE_STATS_EPOCH_DURATION_ASN = 565 * 2 # about 1 second
 
+MARI_PROBE_STATS_MAX_LEN = 10
+
 
 @dataclass
 class TestState:
@@ -251,7 +253,7 @@ class MariNode:
     gateway_address: int
     last_seen: datetime = field(default_factory=lambda: datetime.now())
     probe_stats: deque[MetricsProbePayload] = field(
-        default_factory=lambda: deque(maxlen=10)
+        default_factory=lambda: deque(maxlen=MARI_PROBE_STATS_MAX_LEN)
     )  # NOTE: related to frequency of probe stats
     stats: FrameStats = field(default_factory=FrameStats)
     metrics_stats: MetricsStats = field(default_factory=MetricsStats)

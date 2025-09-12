@@ -61,10 +61,8 @@ class MarilibEdge(MarilibBase):
         self.serial_interface.init(self.on_serial_data_received)
         if self.logger:
             self.logger.log_setup_parameters(self.setup_params)
-        self.metrics_tester = MetricsTester(self)  # it may or not be started later
-        if self.metrics_probe_period:
-            self.metrics_tester.set_interval(self.metrics_probe_period)
-            self.metrics_tester.start()
+        self.metrics_tester = MetricsTester(self, self.metrics_probe_period)
+        self.metrics_tester.start()
 
     # ============================ MarilibBase methods =========================
 
