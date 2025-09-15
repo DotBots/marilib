@@ -20,7 +20,8 @@ def on_byte_received(byte):
     if hdlc_handler.state == HDLCState.READY:
         try:
             payload = hdlc_handler.payload
-            print(f"Received payload: {payload.hex()}")
+            print(".", end="", flush=True)
+            # print(f"Received payload: {payload.hex()}")
         except HDLCDecodeException as e:
             print(f"Error decoding payload: {e}")
 
@@ -30,6 +31,12 @@ serial_interface = SerialInterface("/dev/ttyACM0", BAUDRATE, on_byte_received)
 
 while True:
     time.sleep(1)
-    payload = b"AAA"
-    print(f"Sending payload: {payload.hex()}")
-    serial_interface.write(hdlc_encode(payload))
+    payload = b"A" * 4
+    print(f"Sending {len(payload)} bytes: {payload.hex(' ')}")
+    encoded = hdlc_encode(payload)
+    print(f"Sending encoded {len(encoded)} bytes: {encoded.hex(' ')}")
+    serial_interface.write(encoded[0:1])
+    time.sleep(0.01)
+    serial_interface.write(encoded[1:])
+
+    # serial_interface.write(b"A" * 8)
