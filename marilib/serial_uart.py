@@ -75,7 +75,7 @@ class SerialInterface(threading.Thread):
         self.join()
 
     def write_chunked(self, bytes_):
-        """Write bytes on serial using the chunked strategy."""
+        """Write bytes on serial using the chunked strategy. (deprecated)"""
         # Send 64 bytes at a time
         pos = 0
         while pos < len(bytes_):
@@ -87,9 +87,11 @@ class SerialInterface(threading.Thread):
                 time.sleep(SERIAL_PAYLOAD_CHUNK_DELAY)
 
     def write_trigger_byte(self, bytes_):
-        """Write bytes on serial using the trigger byte strategy."""
+        """Write bytes on serial using the trigger byte strategy. (deprecated)"""
         self.serial.write(bytes_[0:1])
-        time.sleep(0.0001)  # 100 us -- this time is important because of the trigger byte timeout on the nRF side
+        time.sleep(
+            0.0001
+        )  # 100 us -- this time is important because of the trigger byte timeout on the nRF side
         self.serial.write(bytes_[1:])
         self.serial.flush()
         time.sleep(SERIAL_PAYLOAD_CHUNK_DELAY)
@@ -100,9 +102,11 @@ class SerialInterface(threading.Thread):
         pos = 0
         while pos < len(bytes_):
             # send trigger byte
-            trigger_byte = bytes_[pos:pos+1]
+            trigger_byte = bytes_[pos : pos + 1]
             self.serial.write(trigger_byte)
-            time.sleep(0.0001)  # 100 us -- this time is important because of the trigger byte timeout on the nRF side
+            time.sleep(
+                0.0001
+            )  # 100 us -- this time is important because of the trigger byte timeout on the nRF side
             pos += 1
 
             # send chunk
