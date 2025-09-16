@@ -98,6 +98,8 @@ class MetricsProbePayload(Packet):
         return (self.cloud_rx_ts_us - self.cloud_tx_ts_us) / 1000.0
 
     def pdr_saturated(self, count_a: int, count_b: int) -> float:
+        if count_b == 0:
+            return 0.0
         pdr = count_a / count_b
         if pdr > 1.0:
             return 0.0
