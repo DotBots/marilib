@@ -42,7 +42,7 @@ class LoadTester(threading.Thread):
             if nodes_exist:
                 self.mari.send_frame(
                     MARI_BROADCAST_ADDRESS,
-                    DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).to_bytes(),
+                    DefaultPayload(type_=DefaultPayloadType.METRICS_LOAD).with_filler_bytes(180),
                 )
             self._stop_event.wait(self.delay)
 

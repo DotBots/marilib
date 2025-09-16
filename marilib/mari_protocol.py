@@ -29,6 +29,9 @@ class DefaultPayload(Packet):
     )
     type_: DefaultPayloadType = DefaultPayloadType.APPLICATION_DATA
 
+    def with_filler_bytes(self, length: int) -> bytes:
+        return self.to_bytes() + bytes([0xF1] * length)
+
 
 @dataclass
 class MetricsProbePayload(Packet):
