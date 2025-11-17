@@ -10,11 +10,11 @@ MARI_NET_ID_DEFAULT = 0x0001
 
 
 class DefaultPayloadType(IntEnum):
-    APPLICATION_DATA = 1
-    METRICS_REQUEST = 128
-    METRICS_RESPONSE = 129
-    METRICS_LOAD = 130
-    METRICS_PROBE = 140
+    APPLICATION_DATA = 0x01
+    METRICS_REQUEST = 0x90
+    METRICS_RESPONSE = 0x91
+    METRICS_LOAD = 0x92
+    METRICS_PROBE = 0x9C
 
     def as_bytes(self) -> bytes:
         return bytes([self.value])
