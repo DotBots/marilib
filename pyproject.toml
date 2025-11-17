@@ -23,12 +23,12 @@ authors = [
     { name="Geovane Fedrecheski", email="geovane.fedrecheski@inria.fr" },
 ]
 dependencies = [
-    "click          == 8.1.7",
-    "pyserial       == 3.5",
-    "rich           == 14.0.0",
-    "structlog      == 24.4.0",
-    "tqdm           == 4.66.5",
-    "paho-mqtt      == 2.1.0",
+    "click          >= 8.1.7",
+    "pyserial       >= 3.5",
+    "rich           >= 14.0.0",
+    "structlog      >= 24.4.0",
+    "tqdm           >= 4.66.5",
+    "paho-mqtt      >= 2.1.0",
 ]
 description = "MariLib is a Python library for interacting with the Mari network."
 readme = "README.md"
