@@ -44,7 +44,7 @@ class MarilibEdge(MarilibBase):
     gateway: MariGateway = field(default_factory=MariGateway)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     metrics_tester: MetricsTester | None = None
-    metrics_probe_period: float | None = None
+    metrics_probe_period: float = 0
 
     started_ts: datetime = field(default_factory=datetime.now)
     last_received_serial_data_ts: datetime = field(default_factory=datetime.now)
