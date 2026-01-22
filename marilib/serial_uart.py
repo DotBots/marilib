@@ -39,39 +39,65 @@ class SerialInterfaceException(Exception):
 
 
 class SerialInterface(threading.Thread):
-    """Bidirectional serial interface."""
+    """Bidirectional serial interface with auto-reconnect."""
 
-    def __init__(self, port: str, baudrate: int, callback: Callable):
+    def __init__(self, port: str, baudrate: int, callback: Callable, reconnect_delay: float = 1.0):
         self.lock = threading.Lock()
         self.callback = callback
-        self.serial = serial.Serial(port, baudrate)
+        self.port = port
+        self.baudrate = baudrate
+        self.serial = None
+        self._reconnect_delay = reconnect_delay
+        self._stop_event = threading.Event()
         super().__init__(daemon=True)
         self._logger = logging.getLogger(__name__)
         self.start()
         self._logger.info("Serial port thread started")
 
+    def _open_serial(self) -> bool:
+        try:
+            self.serial = serial.Serial(self.port, self.baudrate)
+            self.serial.flush()
+            self._logger.info("Connected to serial port %s at %s baud", self.port, self.baudrate)
+            return True
+        except (serial.serialutil.SerialException, OSError) as exc:
+            self.serial = None
+            self._logger.info("Serial port not available yet: %s", exc)
+            return False
+
+    def _close_serial(self):
+        if self.serial:
+            try:
+                self.serial.close()
+            except (serial.serialutil.SerialException, OSError):
+                pass
+            self.serial = None
+
+    def _ensure_open(self) -> bool:
+        if self.serial and self.serial.is_open:
+            return True
+        return self._open_serial()
+
     def run(self):
         """Listen continuously at each byte received on serial."""
-        self.serial.flush()
-        try:
-            while 1:
-                try:
-                    byte = self.serial.read(1)
-                except (TypeError, serial.serialutil.SerialException):
-                    byte = None
-                if byte is None:
-                    self._logger.info("Serial port disconnected")
-                    break
-                self.callback(byte)
-        except serial.serialutil.PortNotOpenError as exc:
-            self._logger.error(f"{exc}")
-            raise SerialInterfaceException(f"{exc}") from exc
-        except serial.serialutil.SerialException as exc:
-            self._logger.error(f"{exc}")
-            raise SerialInterfaceException(f"{exc}") from exc
+        while not self._stop_event.is_set():
+            if not self._ensure_open():
+                time.sleep(self._reconnect_delay)
+                continue
+            try:
+                byte = self.serial.read(1)
+            except (TypeError, serial.serialutil.SerialException, serial.serialutil.PortNotOpenError):
+                self._logger.info("Serial port disconnected")
+                self._close_serial()
+                time.sleep(self._reconnect_delay)
+                continue
+            if not byte:
+                continue
+            self.callback(byte)
 
     def stop(self):
-        self.serial.close()
+        self._stop_event.set()
+        self._close_serial()
         self.join()
 
     def write_chunked(self, bytes_):
@@ -120,4 +146,8 @@ class SerialInterface(threading.Thread):
 
     def write(self, bytes_):
         """Write bytes on serial."""
+        if not self._ensure_open():
+            self._logger.info("Serial port not available for write")
+            return
+        self.serial.flush()
         self.write_chunked_with_trigger_byte(bytes_)

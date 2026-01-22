@@ -47,14 +47,13 @@ class SerialAdapter(CommunicationAdapterBase):
     def init(self, on_data_received: callable):
         self.on_data_received = on_data_received
         self.serial = SerialInterface(self.port, self.baudrate, self.on_byte_received)
-        print(f"[yellow]Connected to serial port {self.port} at {self.baudrate} baud[/]")
+        print(f"[yellow]Serial interface initialized on {self.port} at {self.baudrate} baud[/]")
 
     def close(self):
         print("[yellow]Disconnect from gateway...[/]")
 
     def send_data(self, data):
         with self.serial.lock:  # Use the existing lock for thread safety
-            self.serial.serial.flush()
             encoded = hdlc_encode(data)
             self.serial.write(encoded)
 
