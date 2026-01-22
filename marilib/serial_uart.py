@@ -41,12 +41,13 @@ class SerialInterfaceException(Exception):
 class SerialInterface(threading.Thread):
     """Bidirectional serial interface with auto-reconnect."""
 
-    def __init__(self, port: str, baudrate: int, callback: Callable, reconnect_delay: float = 1.0):
+    def __init__(self, port: str, baudrate: int, callback: Callable, reconnect_delay: float = 3.0):
         self.lock = threading.Lock()
         self.callback = callback
         self.port = port
         self.baudrate = baudrate
         self.serial = None
+        self._connected = False
         self._reconnect_delay = reconnect_delay
         self._stop_event = threading.Event()
         super().__init__(daemon=True)
@@ -58,10 +59,12 @@ class SerialInterface(threading.Thread):
         try:
             self.serial = serial.Serial(self.port, self.baudrate)
             self.serial.flush()
+            self._connected = True
             self._logger.info("Connected to serial port %s at %s baud", self.port, self.baudrate)
             return True
         except (serial.serialutil.SerialException, OSError) as exc:
             self.serial = None
+            self._connected = False
             self._logger.info("Serial port not available yet: %s", exc)
             return False
 
@@ -72,6 +75,11 @@ class SerialInterface(threading.Thread):
             except (serial.serialutil.SerialException, OSError):
                 pass
             self.serial = None
+        self._connected = False
+
+    @property
+    def connected(self) -> bool:
+        return self._connected
 
     def _ensure_open(self) -> bool:
         if self.serial and self.serial.is_open:

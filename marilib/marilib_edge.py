@@ -86,7 +86,7 @@ class MarilibEdge(MarilibBase):
 
     def send_frame(self, dst: int, payload: bytes):
         """Sends a frame to the gateway via serial."""
-        assert self.serial_interface is not None
+        assert self.serial_interface is not None and self.serial_interface.connected
 
         mari_frame = Frame(Header(destination=dst), payload=payload)
 
@@ -122,7 +122,7 @@ class MarilibEdge(MarilibBase):
 
     @property
     def serial_connected(self) -> bool:
-        return self.serial_interface is not None
+        return self.serial_interface is not None and self.serial_interface.connected
 
     def get_max_downlink_rate(self) -> float:
         """Calculate the max downlink packets/sec for a given schedule_id."""

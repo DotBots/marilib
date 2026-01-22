@@ -49,6 +49,10 @@ class SerialAdapter(CommunicationAdapterBase):
         self.serial = SerialInterface(self.port, self.baudrate, self.on_byte_received)
         print(f"[yellow]Serial interface initialized on {self.port} at {self.baudrate} baud[/]")
 
+    @property
+    def connected(self) -> bool:
+        return self.serial is not None and self.serial.connected
+
     def close(self):
         print("[yellow]Disconnect from gateway...[/]")
 
