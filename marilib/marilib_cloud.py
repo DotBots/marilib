@@ -151,6 +151,12 @@ class MarilibCloud(MarilibBase):
                 node_info = NodeInfoCloud().from_bytes(data[1:])
                 gateway = self.gateways.get(node_info.gateway_address)
                 if gateway:
+                    # Same auto-add rationale as in the NODE_DATA branch:
+                    # late subscribers miss the one-shot NODE_JOINED, so the
+                    # node may not be in our local list yet. KEEP_ALIVE is a
+                    # strong signal it's connected — adopt it.
+                    if gateway.get_node(node_info.address) is None:
+                        self.add_node(node_info.address, node_info.gateway_address)
                     gateway.update_node_liveness(node_info.address)
                     return True, EdgeEvent.NODE_KEEP_ALIVE, node_info
 
@@ -173,8 +179,15 @@ class MarilibCloud(MarilibBase):
                 gateway = self.gateways.get(gateway_address)
                 if not gateway:
                     return False, EdgeEvent.UNKNOWN, None
+                # Auto-add unknown nodes: NODE_JOINED is published only once
+                # (no retain), so subscribers that connect after a node has
+                # already joined would otherwise drop every NODE_DATA frame
+                # from it. Mirrors the auto-add we already do for an unknown
+                # gateway in the GATEWAY_INFO branch above.
                 node = gateway.get_node(node_address)
-                if not gateway or not node:
+                if node is None:
+                    node = self.add_node(node_address, gateway_address)
+                if node is None:
                     return False, EdgeEvent.UNKNOWN, None
 
                 gateway.update_node_liveness(node_address)
