@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Callable
 from rich import print
 
-from marilib.metrics import MetricsTester
+from marilib.metrics import EDGE_TX_TS_WIRE_OFFSET, MetricsTester
 from marilib.mari_protocol import (
     MARI_BROADCAST_ADDRESS,
     Frame,
@@ -102,6 +102,31 @@ class MarilibEdge(MarilibBase):
             EdgeEvent.to_bytes(EdgeEvent.NODE_DATA) + mari_frame.to_bytes()
         )
 
+    def send_probe(self, dst: int, payload: bytes):
+        """Send a metrics probe with edge_tx_ts_us stamped at wire-departure.
+
+        Identical wire format to send_frame, but edge_tx_ts_us is
+        overwritten with a fresh monotonic timestamp inside the serial
+        adapter's lock, just before the bytes leave the UART. This
+        avoids inflating measured RTT with Python-side lock contention
+        (mari.lock during render_tui, update, etc.). The caller MUST
+        place edge_tx_ts_us within `payload` at the offset assumed by
+        EDGE_TX_TS_WIRE_OFFSET — currently only MetricsTester does.
+        """
+        assert self.serial_interface is not None
+
+        mari_frame = Frame(Header(destination=dst), payload=payload)
+
+        with self.lock:
+            self.gateway.register_sent_frame(mari_frame)
+            if n := self.gateway.get_node(dst):
+                n.register_sent_frame(mari_frame)
+
+        self.serial_interface.send_data(
+            EdgeEvent.to_bytes(EdgeEvent.NODE_DATA) + mari_frame.to_bytes(),
+            late_stamp_offset=EDGE_TX_TS_WIRE_OFFSET,
+        )
+
     def render_tui(self):
         if self.tui:
             self.tui.render(self)
@@ -158,9 +183,15 @@ class MarilibEdge(MarilibBase):
             return
         self.send_frame(frame.header.destination, frame.payload)
 
-    def handle_serial_data(self, data: bytes) -> tuple[bool, EdgeEvent, Any]:
+    def handle_serial_data(
+        self, data: bytes, rx_ts_us: int | None = None
+    ) -> tuple[bool, EdgeEvent, Any]:
         """
         Handles the serial data received from the radio gateway.
+
+        `rx_ts_us` is the monotonic-microsecond timestamp captured by
+        the serial adapter at HDLC-READY (wire arrival). Passed through
+        to handle_response_edge for accurate edge_rx_ts_us stamping.
         """
         if len(data) < 1:
             return False, EdgeEvent.UNKNOWN, None
@@ -207,7 +238,9 @@ class MarilibEdge(MarilibBase):
 
                     # handle metrics probe packets
                     if frame.is_test_packet:
-                        payload = self.metrics_tester.handle_response_edge(frame)
+                        payload = self.metrics_tester.handle_response_edge(
+                            frame, rx_ts_us
+                        )
                         if payload:
                             frame.payload = payload.to_bytes()
 
@@ -217,8 +250,8 @@ class MarilibEdge(MarilibBase):
 
         return False, event_type, None
 
-    def on_serial_data_received(self, data: bytes):
-        res, event_type, event_data = self.handle_serial_data(data)
+    def on_serial_data_received(self, data: bytes, rx_ts_us: int | None = None):
+        res, event_type, event_data = self.handle_serial_data(data, rx_ts_us)
         if not res:
             return
 
