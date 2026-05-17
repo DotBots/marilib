@@ -124,7 +124,6 @@ class MarilibTUIEdge(MarilibTUI):
         avg_radio_pdr_up = mari.gateway.stats_avg_pdr_uplink_radio()
         has_radio_pdr_info = avg_radio_pdr_down > 0 or avg_radio_pdr_up > 0
 
-        pdr_info = "  |  PDR:" if has_uart_pdr_info or has_radio_pdr_info else ""
         radio_pdr_info = (
             f"  Radio ↓ {avg_radio_pdr_down:.1%} ↑ {avg_radio_pdr_up:.1%}"
             if has_radio_pdr_info
@@ -140,7 +139,7 @@ class MarilibTUIEdge(MarilibTUI):
         # Display Latency
         if has_latency_info:
             status.append("Latency:  ", style="bold yellow")
-            status.append(f"Avg: {avg_latency_edge:.1f}ms")
+            status.append(f"Avg: {avg_latency_edge:.1f} ms")
             # Network-wide latency breakdown. Four legs sum ≈ host RTT;
             # see MetricsProbePayload and MariNode docstrings for what
             # each term covers. Red on the largest term so the eye
@@ -191,10 +190,14 @@ class MarilibTUIEdge(MarilibTUI):
                         )
                     )
 
-        # Display PDR
-        status.append(f"{pdr_info}{radio_pdr_info}{uart_pdr_info}")
+        # Display PDR — match the bold-yellow style of Latency/Stats so
+        # all three metric labels look consistent.
+        if has_uart_pdr_info or has_radio_pdr_info:
+            status.append("  |  ")
+            status.append("PDR:", style="bold yellow")
+            status.append(f"{radio_pdr_info}{uart_pdr_info}")
 
-        status.append("\n\nStats:    ", style="bold yellow")
+        status.append("\n\nStats:  ", style="bold yellow")
         if self.test_state and self.test_state.load > 0 and self.test_state.rate > 0:
             status.append(
                 "Test load: ",
@@ -204,7 +207,7 @@ class MarilibTUIEdge(MarilibTUI):
 
         stats = mari.gateway.stats
         status.append(f"Frames TX: {stats.sent_count(include_test_packets=True)}  |  ")
-        status.append(f"Frames RX: {stats.received_count(include_test_packets=True)} |  ")
+        status.append(f"Frames RX: {stats.received_count(include_test_packets=True)}  |  ")
         status.append(f"TX/s: {stats.sent_count(1, include_test_packets=True)}  |  ")
         status.append(f"RX/s: {stats.received_count(1, include_test_packets=True)}")
 

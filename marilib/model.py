@@ -407,21 +407,6 @@ class MariNode:
             return 0.0
         return self.stats_avg_uplink_half_ms() / sf_duration_ms
 
-    def stats_uplink_utilization(self, sf_duration_ms: float) -> float:
-        """Fraction of this node's max sustainable uplink rate currently used.
-
-        max_pps_per_node = 1000 / sf_duration_ms (one U slot per
-        slotframe in the current shipped schedules). Observed pps is
-        the 1-second RX rate at the edge, which equals the drain rate
-        from the node's TX queue. >0.9 means the node is at or near
-        saturation: any extra production will pile up in the queue.
-        """
-        if sf_duration_ms <= 0:
-            return 0.0
-        max_pps = 1000.0 / sf_duration_ms
-        observed_pps = self.stats.received_count(1, include_test_packets=True)
-        return observed_pps / max_pps
-
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
 
