@@ -10,7 +10,13 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from marilib.model import MariNode, TestState
+from marilib.model import SCHEDULES, MariNode, TestState
+
+# Per-node TX-queue depth (in slotframes) above which we color the
+# value yellow (mild contention) or red (real saturation). Same
+# thresholds apply to the network-wide warning in the header.
+QUEUE_DEPTH_WARN_SF = 2.0
+QUEUE_DEPTH_BAD_SF = 4.0
 from marilib.tui import MarilibTUI
 
 if TYPE_CHECKING:
@@ -135,6 +141,55 @@ class MarilibTUIEdge(MarilibTUI):
         if has_latency_info:
             status.append("Latency:  ", style="bold yellow")
             status.append(f"Avg: {avg_latency_edge:.1f}ms")
+            # Network-wide latency breakdown. Four legs sum ≈ host RTT;
+            # see MetricsProbePayload and MariNode docstrings for what
+            # each term covers. Red on the largest term so the eye
+            # lands on the bottleneck.
+            host_ms = mari.gateway.stats_avg_host_overhead_ms()
+            dl_ms = mari.gateway.stats_avg_downlink_half_ms()
+            app_ms = mari.gateway.stats_avg_node_processing_ms()
+            ul_ms = mari.gateway.stats_avg_uplink_half_ms()
+            if dl_ms or app_ms or ul_ms:
+                worst = max(host_ms, dl_ms, app_ms, ul_ms)
+
+                def fmt(v):
+                    s = f"{v:.0f}"
+                    return f"[red]{s}[/red]" if v == worst and worst > 0 else s
+
+                # Text.append doesn't parse markup (only Table cells do);
+                # build a Text via from_markup so the [red] tags render.
+                status.append_text(
+                    Text.from_markup(
+                        f" (host: {fmt(host_ms)}  dl: {fmt(dl_ms)}  app: {fmt(app_ms)}  ul: {fmt(ul_ms)} ms)"
+                    )
+                )
+
+            # Saturation warning. Flag the worst node's TX-queue depth in
+            # slotframes — if any node's queue is multiple slotframes deep,
+            # the operator should see it without scanning the per-node
+            # table. Thresholds match the per-node coloring above.
+            sched_h = SCHEDULES.get(mari.gateway.info.schedule_id)
+            sf_dur_h = float(sched_h["sf_duration"]) if sched_h else 0.0
+            if sf_dur_h > 0 and mari.gateway.nodes:
+                worst_q = max(
+                    (
+                        n.stats_queue_depth_slotframes(sf_dur_h)
+                        for n in mari.gateway.nodes
+                    ),
+                    default=0.0,
+                )
+                if worst_q >= QUEUE_DEPTH_BAD_SF:
+                    status.append_text(
+                        Text.from_markup(
+                            f"  [red bold]⚠ TX queue saturated (worst {worst_q:.1f} sf)[/]"
+                        )
+                    )
+                elif worst_q >= QUEUE_DEPTH_WARN_SF:
+                    status.append_text(
+                        Text.from_markup(
+                            f"  [yellow]⚠ TX queue contended (worst {worst_q:.1f} sf)[/]"
+                        )
+                    )
 
         # Display PDR
         status.append(f"{pdr_info}{radio_pdr_info}{uart_pdr_info}")
@@ -159,7 +214,12 @@ class MarilibTUIEdge(MarilibTUI):
             border_style="blue",
         )
 
-    def create_nodes_table(self, nodes: list[MariNode], title="") -> Table:
+    def create_nodes_table(
+        self,
+        nodes: list[MariNode],
+        title="",
+        sf_duration_ms: float = 0.0,
+    ) -> Table:
         table = Table(
             show_header=True,
             header_style="bold cyan",
@@ -175,14 +235,58 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("Radio ↓ PDR | RSSI", justify="center")
         table.add_column("Radio ↑ PDR | RSSI", justify="center")
         table.add_column("UART PDR ↓ | ↑", justify="center")
-        table.add_column("Latency", justify="center")
+        table.add_column("Latency | host/dl/app/ul (ms)", justify="center")
+        table.add_column("TX queue (sf)", justify="right")
 
         for node in nodes:
-            lat_str = (
-                f"{node.stats_avg_latency_roundtrip_node_edge_ms():.1f} ms"
-                if node.stats_avg_latency_roundtrip_node_edge_ms() > 0
-                else "..."
-            )
+            # Combined latency cell: total host RTT on the left, then
+            # the four-leg breakdown (host overhead, dl, app, ul) on
+            # the right. host overhead = host RTT - wire RTT (UART
+            # round-trip + Python parse); dl/app/ul are the wire-side
+            # ASN-decomposed legs. Sum of the four ≈ total host RTT.
+            # When no probe samples exist yet, show "...". When the
+            # host RTT is known but the firmware hasn't populated the
+            # wire ASNs yet, show the total with "?" for the legs.
+            host_rtt = node.stats_avg_latency_roundtrip_node_edge_ms()
+            dl_ms = node.stats_avg_downlink_half_ms()
+            app_ms = node.stats_avg_node_processing_ms()
+            ul_ms = node.stats_avg_uplink_half_ms()
+            host_ms = node.stats_avg_host_overhead_ms()
+            wire_available = (dl_ms or app_ms or ul_ms) and host_rtt > 0
+            if wire_available:
+                # Color the largest of the four legs red so the eye
+                # lands on the bottleneck. Ties resolve to the latest
+                # in host/dl/app/ul order.
+                worst = max(host_ms, dl_ms, app_ms, ul_ms)
+                parts = []
+                for label_val in [host_ms, dl_ms, app_ms, ul_ms]:
+                    s = f"{label_val:.0f}"
+                    if label_val == worst and worst > 0:
+                        s = f"[red]{s}[/red]"
+                    parts.append(s)
+                lat_str = (
+                    f"{host_rtt:.0f} | "
+                    f"{parts[0]} / {parts[1]} / {parts[2]} / {parts[3]}"
+                )
+            elif host_rtt > 0:
+                lat_str = f"{host_rtt:.0f} | ? / ? / ? / ?"
+            else:
+                lat_str = "..."
+
+            # Node TX-queue depth in slotframes (1 U slot per node per
+            # slotframe → ul_ms / sf_duration_ms ≈ packets queued ahead
+            # of the probe response). Needs the gateway's slotframe
+            # duration, passed in from create_nodes_panel.
+            if sf_duration_ms > 0 and ul_ms > 0:
+                q_sf = node.stats_queue_depth_slotframes(sf_duration_ms)
+                if q_sf >= QUEUE_DEPTH_BAD_SF:
+                    q_str = f"[red]{q_sf:.1f}[/red]"
+                elif q_sf >= QUEUE_DEPTH_WARN_SF:
+                    q_str = f"[yellow]{q_sf:.1f}[/yellow]"
+                else:
+                    q_str = f"{q_sf:.1f}"
+            else:
+                q_str = "..."
             # PDR Downlink with color coding
             if node.stats_pdr_downlink_radio() > 0:
                 if node.stats_pdr_downlink_radio() > 0.9:
@@ -247,12 +351,15 @@ class MarilibTUIEdge(MarilibTUI):
                 f"{pdr_up_str} | {rssi_gw_str} dBm",
                 f"{pdr_down_gw_edge_str} | {pdr_up_gw_edge_str}",
                 lat_str,
+                q_str,
             )
         return table
 
     def create_nodes_panel(self, mari: "MarilibEdge") -> Panel:
         """Create the panel that contains the nodes table."""
         nodes = mari.gateway.nodes
+        sched = SCHEDULES.get(mari.gateway.info.schedule_id)
+        sf_duration_ms = float(sched["sf_duration"]) if sched else 0.0
         max_rows = self.get_max_rows()
         max_displayable_nodes = self.max_tables * max_rows
         nodes_to_display = nodes[:max_displayable_nodes]
@@ -263,7 +370,11 @@ class MarilibTUIEdge(MarilibTUI):
             current_table_nodes.append(node)
             if len(current_table_nodes) == max_rows or i == len(nodes_to_display) - 1:
                 title = f"Nodes {i - len(current_table_nodes) + 2}-{i + 1}"
-                tables.append(self.create_nodes_table(current_table_nodes, title))
+                tables.append(
+                    self.create_nodes_table(
+                        current_table_nodes, title, sf_duration_ms
+                    )
+                )
                 current_table_nodes = []
                 if len(tables) >= self.max_tables:
                     break
