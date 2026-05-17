@@ -238,8 +238,10 @@ class MarilibTUIEdge(MarilibTUI):
         table.add_column("Radio ↓ PDR | RSSI", justify="center")
         table.add_column("Radio ↑ PDR | RSSI", justify="center")
         table.add_column("UART PDR ↓ | ↑", justify="center")
+        # Latency breakdown and Q (sf) are explained in the
+        # "Reading the TUI" section of README.md.
         table.add_column("Latency | host/dl/app/ul (ms)", justify="center")
-        table.add_column("TX queue (sf)", justify="right")
+        table.add_column("Q (sf)", justify="right")
 
         for node in nodes:
             # Combined latency cell: total host RTT on the left, then
