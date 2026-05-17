@@ -11,16 +11,16 @@ from rich.table import Table
 from rich.text import Text
 
 from marilib.model import SCHEDULES, MariNode, TestState
+from marilib.tui import MarilibTUI
+
+if TYPE_CHECKING:
+    from marilib.marilib_edge import MarilibEdge
 
 # Per-node TX-queue depth (in slotframes) above which we color the
 # value yellow (mild contention) or red (real saturation). Same
 # thresholds apply to the network-wide warning in the header.
 QUEUE_DEPTH_WARN_SF = 2.0
 QUEUE_DEPTH_BAD_SF = 4.0
-from marilib.tui import MarilibTUI
-
-if TYPE_CHECKING:
-    from marilib.marilib_edge import MarilibEdge
 
 
 class MarilibTUIEdge(MarilibTUI):
