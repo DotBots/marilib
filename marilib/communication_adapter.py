@@ -1,4 +1,5 @@
 import base64
+import time
 from urllib.parse import urlparse
 import paho.mqtt.client as mqtt
 
@@ -37,10 +38,14 @@ class SerialAdapter(CommunicationAdapterBase):
     def on_byte_received(self, byte):
         self.hdlc_handler.handle_byte(byte)
         if self.hdlc_handler.state == HDLCState.READY:
+            # Capture the RX timestamp as close to wire-arrival as we
+            # can — before downstream callbacks acquire mari.lock,
+            # which can be held by render_tui / update for tens of ms
+            # and would otherwise inflate measured RTT.
+            rx_ts_us = time.monotonic_ns() // 1000
             try:
                 payload = self.hdlc_handler.payload
-                # print(f"Received payload: {payload.hex()}")
-                self.on_data_received(payload)
+                self.on_data_received(payload, rx_ts_us)
             except HDLCDecodeException as e:
                 print(f"Error decoding payload: {e}")
 
@@ -52,8 +57,21 @@ class SerialAdapter(CommunicationAdapterBase):
     def close(self):
         print("[yellow]Disconnect from gateway...[/]")
 
-    def send_data(self, data):
+    def send_data(self, data, late_stamp_offset: int | None = None):
+        """Write data over the UART.
+
+        If `late_stamp_offset` is given, overwrite
+        bytes[late_stamp_offset : late_stamp_offset + 8] of `data` with
+        time.monotonic_ns() // 1000 as little-endian uint64 AFTER the
+        serial lock is acquired and just before HDLC encoding. Used by
+        metrics probes to capture their TX timestamp as close to
+        wire-departure as possible.
+        """
         with self.serial.lock:  # Use the existing lock for thread safety
+            if late_stamp_offset is not None:
+                data = bytearray(data)
+                stamp_us = time.monotonic_ns() // 1000
+                data[late_stamp_offset : late_stamp_offset + 8] = stamp_us.to_bytes(8, "little")
             self.serial.serial.flush()
             encoded = hdlc_encode(data)
             self.serial.write(encoded)

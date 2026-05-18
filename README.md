@@ -23,6 +23,37 @@ To run with a gateway connected via MQTT:
 (.venv) $ mari-cloud -n 0x0100 -m mqtts://argus.paris.inria.fr:8883
 ```
 
+### Reading the TUI
+
+Most columns in the per-node table are self-explanatory (TX/RX
+counts, PDR, RSSI). The two that need a key:
+
+- **Latency | host/dl/app/ul (ms)** — total host-measured round-trip
+  latency on the left of the bar, then the four-leg breakdown that
+  sums (≈) to it:
+  - `host` — UART round-trip plus Python parse overhead (typically
+    10–30 ms at 1 Mbps; sustained higher means host-side congestion).
+  - `dl` — gateway downlink-queue wait plus one radio slot.
+  - `app` — node-side application turnaround (e.g. how long the
+    SwarmIT network-core main loop takes between receiving the probe
+    and enqueueing the response).
+  - `ul` — node uplink-queue wait plus one radio slot. **This is the
+    leg that grows when the node is saturating its uplink budget.**
+
+  Wire legs come from ASN snapshots the firmware stamps into each
+  probe (`gw_tx_enqueued_asn`, `node_rx_asn`,
+  `node_tx_enqueued_asn`, `gw_rx_asn`) converted via the slot
+  duration (1.724 ms in the shipped schedules). When the firmware
+  hasn't populated the wire ASNs the row shows `total | ? / ? / ? / ?`.
+
+- **Q (sf)** — estimated TX-queue depth at the node in **slotframe**
+  units. Each joined node has exactly one uplink slot per slotframe,
+  so `ul_ms / sf_duration_ms` is the number of packets queued ahead
+  of the probe response when it was enqueued. Coloring: white below
+  2 (healthy), yellow at 2–4 (contended), red above 4 (saturated).
+  The header panel also shows a `⚠ TX queue saturated` line when any
+  node crosses the red threshold.
+
 ## Setup and dependencies
 To setup the environment, do:
 

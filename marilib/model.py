@@ -352,6 +352,59 @@ class MariNode:
             return 0
         return self.probe_stats_latest.latency_roundtrip_node_cloud_ms()
 
+    # ASN-decomposed latency aggregates. Each averages over the
+    # probe_stats deque, ignoring samples where the relevant ASN pair
+    # is missing or non-monotonic (returns 0.0 from the underlying
+    # MetricsProbePayload helper). See MetricsProbePayload docstrings.
+
+    def _avg_nonzero(self, vals: list[float]) -> float:
+        vals = [v for v in vals if v > 0]
+        return sum(vals) / len(vals) if vals else 0.0
+
+    def stats_avg_downlink_half_ms(self) -> float:
+        return self._avg_nonzero([p.downlink_half_ms() for p in self.probe_stats])
+
+    def stats_avg_node_processing_ms(self) -> float:
+        return self._avg_nonzero([p.node_processing_ms() for p in self.probe_stats])
+
+    def stats_avg_uplink_half_ms(self) -> float:
+        return self._avg_nonzero([p.uplink_half_ms() for p in self.probe_stats])
+
+    def stats_avg_wire_rtt_ms(self) -> float:
+        return self._avg_nonzero([p.wire_rtt_ms() for p in self.probe_stats])
+
+    def stats_avg_host_overhead_ms(self) -> float:
+        """Host-side overhead = host RTT - wire RTT.
+
+        Captures UART round-trip + small gateway-internal time +
+        Python parse overhead. At 1 Mbps UART this is typically
+        10-30 ms. Sustained higher values suggest UART congestion at
+        the gateway, lock contention on the edge, or GIL pressure.
+
+        Returns 0 if either host RTT or wire RTT are unavailable, or
+        if their difference is negative (which shouldn't happen with
+        the monotonic-clock fix in MetricsTester.timestamp_us; clamp
+        defensively)."""
+        host = self.stats_avg_latency_roundtrip_node_edge_ms()
+        wire = self.stats_avg_wire_rtt_ms()
+        if host <= 0 or wire <= 0:
+            return 0.0
+        return max(0.0, host - wire)
+
+    def stats_queue_depth_slotframes(self, sf_duration_ms: float) -> float:
+        """Estimated TX-queue depth at the node, in slotframe units.
+
+        Each joined node has exactly one U slot per slotframe (Mari paper,
+        §3.5 / Table 1), so the uplink half of the probe RTT divided by
+        the slotframe duration is the number of packets queued ahead of
+        the probe response when it was enqueued. Sustained values > 1
+        indicate contention, > 3 is real saturation. Returns 0 when
+        slotframe duration is unknown.
+        """
+        if sf_duration_ms <= 0:
+            return 0.0
+        return self.stats_avg_uplink_half_ms() / sf_duration_ms
+
     def register_received_frame(self, frame: Frame):
         self.stats.add_received(frame)
 
@@ -504,6 +557,25 @@ class MariGateway:
             self.nodes
         )
         return res if res >= 0 else 0.0
+
+    # Network-level averages of the ASN-decomposed latency, skipping
+    # nodes that haven't produced a usable sample yet.
+    def _avg_node_metric_nonzero(self, fn) -> float:
+        vals = [fn(n) for n in self.nodes]
+        vals = [v for v in vals if v > 0]
+        return sum(vals) / len(vals) if vals else 0.0
+
+    def stats_avg_downlink_half_ms(self) -> float:
+        return self._avg_node_metric_nonzero(MariNode.stats_avg_downlink_half_ms)
+
+    def stats_avg_node_processing_ms(self) -> float:
+        return self._avg_node_metric_nonzero(MariNode.stats_avg_node_processing_ms)
+
+    def stats_avg_uplink_half_ms(self) -> float:
+        return self._avg_node_metric_nonzero(MariNode.stats_avg_uplink_half_ms)
+
+    def stats_avg_host_overhead_ms(self) -> float:
+        return self._avg_node_metric_nonzero(MariNode.stats_avg_host_overhead_ms)
 
     def stats_avg_latency_roundtrip_node_cloud_ms(self) -> float:
         if not self.nodes:

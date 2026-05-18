@@ -8,6 +8,12 @@ MARI_PROTOCOL_VERSION = 2
 MARI_BROADCAST_ADDRESS = 0xFFFFFFFFFFFFFFFF
 MARI_NET_ID_DEFAULT = 0x0001
 
+# Mari slot duration in ms. From fedrecheski26mari.pdf §3.4 and Table 1:
+# all four shipped schedules have ~1.7 ms slots (huge: 256.88 ms /
+# 149 slots = 1.7240 ms; the others come out to the same value within
+# rounding). Used to convert ASN deltas in MetricsProbePayload to ms.
+MARI_SLOT_DURATION_MS = 1.7240
+
 
 class DefaultPayloadType(IntEnum):
     APPLICATION_DATA = 0x01
@@ -96,6 +102,53 @@ class MetricsProbePayload(Packet):
 
     def latency_roundtrip_node_cloud_ms(self) -> float:
         return (self.cloud_rx_ts_us - self.cloud_tx_ts_us) / 1000.0
+
+    # ----------------------- ASN-decomposed latency -----------------------
+    # The probe carries ASN snapshots taken at the gateway and the node.
+    # Multiplied by MARI_SLOT_DURATION_MS, ASN deltas tell us where the
+    # RTT went in slot-time:
+    #
+    #   dl half = node_rx_asn - gw_tx_enqueued_asn
+    #             (gateway downlink-queue wait + 1 radio slot)
+    #   app     = node_tx_enqueued_asn - node_rx_asn
+    #             (swarmit netcore main-loop turnaround)
+    #   ul half = gw_rx_asn - node_tx_enqueued_asn
+    #             (node uplink-queue wait + 1 radio slot)
+    #
+    # Note: gw_tx_dequeued_asn and node_tx_dequeued_asn are declared in
+    # mari/models.h but never written by the firmware, so we can't isolate
+    # the queue wait from the radio-slot fire — both are folded into the
+    # 'dl half' and 'ul half' figures. See docs/mari-protocol-summary.md.
+
+    def _asn_delta_ms(self, end_asn: int, start_asn: int) -> float:
+        """Convert end-start ASN to ms. Returns 0.0 for missing samples
+        (any ASN == 0) or non-monotonic pairs (end <= start, which can
+        happen on the first probe before counters have rolled in)."""
+        if not end_asn or not start_asn or end_asn <= start_asn:
+            return 0.0
+        return (end_asn - start_asn) * MARI_SLOT_DURATION_MS
+
+    def downlink_half_ms(self) -> float:
+        """Gateway-enqueue to node-receive. Includes the gateway's
+        downlink-queue wait plus one radio slot."""
+        return self._asn_delta_ms(self.node_rx_asn, self.gw_tx_enqueued_asn)
+
+    def node_processing_ms(self) -> float:
+        """Node app-side turnaround: node-receive to node-enqueue. In
+        the swarmit firmware, this is the time the netcore main loop
+        takes to process the probe and queue the response."""
+        return self._asn_delta_ms(self.node_tx_enqueued_asn, self.node_rx_asn)
+
+    def uplink_half_ms(self) -> float:
+        """Node-enqueue to gateway-receive. Includes the node's
+        uplink-queue wait plus one radio slot. This is where queue
+        backpressure at the node will show up."""
+        return self._asn_delta_ms(self.gw_rx_asn, self.node_tx_enqueued_asn)
+
+    def wire_rtt_ms(self) -> float:
+        """Total wire round-trip in slot-time = dl + app + ul. Should be
+        close to host-measured RTT minus UART + Python overhead (~15-30 ms)."""
+        return self.downlink_half_ms() + self.node_processing_ms() + self.uplink_half_ms()
 
     def pdr_saturated(self, count_a: int, count_b: int) -> float:
         if count_b == 0:
