@@ -3,24 +3,43 @@ import time
 from typing import TYPE_CHECKING
 
 from rich import print
-from marilib.mari_protocol import Frame, DefaultPayloadType
-from marilib.mari_protocol import MetricsProbePayload
+from marilib.mari_protocol import (
+    DefaultPayloadType,
+    Frame,
+    Header,
+    HeaderStats,
+    MetricsProbePayload,
+)
 from marilib.model import MariGateway, MariNode, MARI_PROBE_STATS_MAX_LEN
 
 if TYPE_CHECKING:
     from marilib.marilib_edge import MarilibEdge
 
 
-# Wire-byte offset of edge_tx_ts_us in an outbound probe frame:
-#   1 byte EdgeEvent prefix + 20-byte Header + 1-byte HeaderStats +
-#   offset of edge_tx_ts_us within MetricsProbePayload.
-# Used by MarilibEdge.send_probe to overwrite this field with a fresh
-# monotonic timestamp inside the serial-adapter lock, just before the
-# bytes leave the UART.
+# Wire-byte offset of edge_tx_ts_us in an outbound probe frame.
+# Layout of the bytes that MarilibEdge.send_probe hands to the serial
+# adapter:
+#   [1 byte EdgeEvent prefix]   (prepended by send_probe;
+#                                EdgeEvent.NODE_DATA in EdgeEvent.to_bytes)
+#   [Header bytes]              (sum of Header().metadata field lengths,
+#                                today 20: version + type_ + network_id
+#                                + dst + src)
+#   [HeaderStats bytes]         (sum of HeaderStats().metadata field
+#                                lengths, today 1: rssi)
+#   [MetricsProbePayload bytes] (the fields preceding edge_tx_ts_us in
+#                                MetricsProbePayload().metadata: type,
+#                                cloud_tx_ts_us, cloud_rx_ts_us,
+#                                cloud_tx_count, cloud_rx_count, today 25)
+# Only the leading 1 byte (EdgeEvent prefix) is a literal; the rest is
+# derived from the dataclass metadata so the offset survives any
+# reordering of the Mari header or probe layout.
+# Used by MarilibEdge.send_probe to overwrite edge_tx_ts_us with a
+# fresh monotonic timestamp inside the serial-adapter lock, just
+# before the bytes leave the UART.
 EDGE_TX_TS_WIRE_OFFSET = (
     1
-    + 20
-    + 1
+    + sum(f.length for f in Header().metadata)
+    + sum(f.length for f in HeaderStats().metadata)
     + sum(
         f.length
         for f in MetricsProbePayload().metadata
@@ -146,9 +165,7 @@ class MetricsTester:
             print(f"[red]Error parsing metrics response: {e}[/]")
             return
 
-        payload.edge_rx_ts_us = (
-            rx_ts_us if rx_ts_us is not None else self.timestamp_us()
-        )
+        payload.edge_rx_ts_us = rx_ts_us if rx_ts_us is not None else self.timestamp_us()
         payload.edge_rx_count = node.probe_increment_rx_count()
 
         node.save_probe_stats(payload)

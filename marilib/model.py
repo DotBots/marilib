@@ -365,9 +365,7 @@ class MariNode:
         return self._avg_nonzero([p.downlink_half_ms() for p in self.probe_stats])
 
     def stats_avg_node_processing_ms(self) -> float:
-        return self._avg_nonzero(
-            [p.node_processing_ms() for p in self.probe_stats]
-        )
+        return self._avg_nonzero([p.node_processing_ms() for p in self.probe_stats])
 
     def stats_avg_uplink_half_ms(self) -> float:
         return self._avg_nonzero([p.uplink_half_ms() for p in self.probe_stats])
@@ -571,9 +569,7 @@ class MariGateway:
         return self._avg_node_metric_nonzero(MariNode.stats_avg_downlink_half_ms)
 
     def stats_avg_node_processing_ms(self) -> float:
-        return self._avg_node_metric_nonzero(
-            MariNode.stats_avg_node_processing_ms
-        )
+        return self._avg_node_metric_nonzero(MariNode.stats_avg_node_processing_ms)
 
     def stats_avg_uplink_half_ms(self) -> float:
         return self._avg_node_metric_nonzero(MariNode.stats_avg_uplink_half_ms)

@@ -71,9 +71,7 @@ class SerialAdapter(CommunicationAdapterBase):
             if late_stamp_offset is not None:
                 data = bytearray(data)
                 stamp_us = time.monotonic_ns() // 1000
-                data[late_stamp_offset : late_stamp_offset + 8] = stamp_us.to_bytes(
-                    8, "little"
-                )
+                data[late_stamp_offset : late_stamp_offset + 8] = stamp_us.to_bytes(8, "little")
             self.serial.serial.flush()
             encoded = hdlc_encode(data)
             self.serial.write(encoded)

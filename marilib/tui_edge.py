@@ -171,10 +171,7 @@ class MarilibTUIEdge(MarilibTUI):
             sf_dur_h = float(sched_h["sf_duration"]) if sched_h else 0.0
             if sf_dur_h > 0 and mari.gateway.nodes:
                 worst_q = max(
-                    (
-                        n.stats_queue_depth_slotframes(sf_dur_h)
-                        for n in mari.gateway.nodes
-                    ),
+                    (n.stats_queue_depth_slotframes(sf_dur_h) for n in mari.gateway.nodes),
                     default=0.0,
                 )
                 if worst_q >= QUEUE_DEPTH_BAD_SF:
@@ -269,10 +266,7 @@ class MarilibTUIEdge(MarilibTUI):
                     if label_val == worst and worst > 0:
                         s = f"[red]{s}[/red]"
                     parts.append(s)
-                lat_str = (
-                    f"{host_rtt:.0f} | "
-                    f"{parts[0]} / {parts[1]} / {parts[2]} / {parts[3]}"
-                )
+                lat_str = f"{host_rtt:.0f} | {parts[0]} / {parts[1]} / {parts[2]} / {parts[3]}"
             elif host_rtt > 0:
                 lat_str = f"{host_rtt:.0f} | ? / ? / ? / ?"
             else:
@@ -375,11 +369,7 @@ class MarilibTUIEdge(MarilibTUI):
             current_table_nodes.append(node)
             if len(current_table_nodes) == max_rows or i == len(nodes_to_display) - 1:
                 title = f"Nodes {i - len(current_table_nodes) + 2}-{i + 1}"
-                tables.append(
-                    self.create_nodes_table(
-                        current_table_nodes, title, sf_duration_ms
-                    )
-                )
+                tables.append(self.create_nodes_table(current_table_nodes, title, sf_duration_ms))
                 current_table_nodes = []
                 if len(tables) >= self.max_tables:
                     break

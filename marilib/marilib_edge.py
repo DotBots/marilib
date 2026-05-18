@@ -238,9 +238,7 @@ class MarilibEdge(MarilibBase):
 
                     # handle metrics probe packets
                     if frame.is_test_packet:
-                        payload = self.metrics_tester.handle_response_edge(
-                            frame, rx_ts_us
-                        )
+                        payload = self.metrics_tester.handle_response_edge(frame, rx_ts_us)
                         if payload:
                             frame.payload = payload.to_bytes()
 

@@ -148,11 +148,7 @@ class MetricsProbePayload(Packet):
     def wire_rtt_ms(self) -> float:
         """Total wire round-trip in slot-time = dl + app + ul. Should be
         close to host-measured RTT minus UART + Python overhead (~15-30 ms)."""
-        return (
-            self.downlink_half_ms()
-            + self.node_processing_ms()
-            + self.uplink_half_ms()
-        )
+        return self.downlink_half_ms() + self.node_processing_ms() + self.uplink_half_ms()
 
     def pdr_saturated(self, count_a: int, count_b: int) -> float:
         if count_b == 0:
