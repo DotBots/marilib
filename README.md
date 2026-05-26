@@ -1,5 +1,12 @@
 # MariLib 💫 👀 🐍
 
+> **Deprecated as of 2026-05.** MariLib has been folded into the
+> [`mari`](https://github.com/DotBots/mari) repository and now lives there
+> under `marilib/`, from where it continues to be published to PyPI as
+> `marilib-pkg` (so `pip install marilib-pkg` is unaffected). Develop and
+> track it there; this standalone repository is frozen and will be archived
+> after a grace period.
+
 MariLib is a Python library to interact with a local [Mari](https://github.com/DotBots/mari) network.
 It connects to a Mari gateway via:
 - UART, using MarilibEdge
